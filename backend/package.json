@@ -1,0 +1,58 @@
+{
+  "name": "zello-transcription-hub-backend",
+  "version": "1.0.0",
+  "description": "Backend API para Zello Transcription Hub",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "db:migrate": "tsx src/config/db/migrate.ts",
+    "db:seed": "tsx src/config/db/seed.ts",
+    "db:generate": "drizzle-kit generate:mysql",
+    "db:push": "drizzle-kit push:mysql"
+  },
+  "keywords": [
+    "transcription",
+    "zello",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/multer": "^2.0.0",
+    "@types/nodemailer": "^7.0.4",
+    "@types/pdf-parse": "^1.1.5",
+    "axios": "^1.6.2",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "drizzle-orm": "^0.29.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "jsonwebtoken": "^9.0.2",
+    "mammoth": "^1.11.0",
+    "multer": "^2.0.2",
+    "mysql2": "^3.6.5",
+    "nodemailer": "^7.0.11",
+    "pdf-parse": "^2.4.5",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.5",
+    "@vitest/coverage-v8": "^1.1.0",
+    "drizzle-kit": "^0.20.6",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0",
+    "supertest": "^6.3.4"
+  }
+}

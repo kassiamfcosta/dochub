@@ -1,0 +1,234 @@
+import { Request, Response } from 'express';
+import { db } from '../config/db';
+import { transcriptions, userStories, summaries, cards, sharedTranscriptions, transcriptionFiles } from '../config/db/schema';
+import { eq, and, or } from 'drizzle-orm';
+import { ZelloMindServiceFactory } from '../services/zello-mind/ZelloMindServiceFactory';
+import { NotFoundError, AuthorizationError } from '../utils/errors';
+
+/**
+ * Helper para verificar acesso à transcrição
+ */
+async function verifyTranscriptionAccess(transcriptionId: number, userId: number) {
+  const result = await db
+    .select({
+      transcription: transcriptions,
+    })
+    .from(transcriptions)
+    .leftJoin(
+      sharedTranscriptions,
+      eq(sharedTranscriptions.transcriptionId, transcriptions.id)
+    )
+    .where(
+      and(
+        eq(transcriptions.id, transcriptionId),
+        eq(transcriptions.isArchived, false),
+        or(
+          eq(transcriptions.userId, userId),
+          eq(sharedTranscriptions.sharedWithUserId, userId)
+        )
+      )
+    )
+    .limit(1);
+
+  if (!result.length || !result[0].transcription) {
+    throw new NotFoundError('Transcrição não encontrada');
+  }
+
+  return result[0].transcription;
+}
+
+function buildContextFromTranscription(t: any, files: Array<{ name: string; size: number; mimeType: string }>): string {
+  const parts: string[] = [];
+  if (t?.content && typeof t.content === 'string' && t.content.trim()) parts.push(t.content.trim());
+  if (t?.title && typeof t.title === 'string' && t.title.trim()) parts.push(`Título: ${t.title.trim()}`);
+  if (t?.description && typeof t.description === 'string' && t.description.trim()) parts.push(`Descrição: ${t.description.trim()}`);
+  if (Array.isArray(files) && files.length > 0) {
+    const filesDesc = files
+      .map(f => `${f.name} (${f.mimeType || 'desconhecido'}, ${(f.size / 1024).toFixed(1)} KB)`)
+      .join('; ');
+    parts.push(`Arquivos enviados: ${filesDesc}`);
+  }
+  return parts.join(' | ');
+}
+
+/**
+ * Controller de geração de conteúdo (HU, Resumos e Cards)
+ */
+export class GenerationController {
+  /**
+   * Gera História de Usuário para uma transcrição
+   */
+  static async generateUserStory(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      throw new AuthorizationError();
+    }
+
+    const { id } = req.params;
+    const transcriptionId = parseInt(id, 10);
+    const userId = req.user.userId;
+
+    const transcription = await verifyTranscriptionAccess(transcriptionId, userId);
+
+    // Verifica se já existe HU
+    const [existingHU] = await db
+      .select()
+      .from(userStories)
+      .where(eq(userStories.transcriptionId, transcriptionId))
+      .limit(1);
+
+    if (existingHU) {
+      res.json({
+        success: true,
+        message: 'História de Usuário já existe',
+        data: existingHU,
+      });
+      return;
+    }
+
+    // Gera HU usando serviço de agentes
+    const agentService = ZelloMindServiceFactory.create();
+    const files = await db
+      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .from(transcriptionFiles)
+      .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
+    const context = buildContextFromTranscription(transcription, files as any);
+    const generatedContent = await agentService.generateUserStory(context);
+
+    // Salva HU no banco
+    await db.insert(userStories).values({
+      transcriptionId,
+      content: generatedContent,
+    });
+
+    // Busca o registro inserido
+    const [userStory] = await db
+      .select()
+      .from(userStories)
+      .where(eq(userStories.transcriptionId, transcriptionId))
+      .limit(1);
+
+    res.status(201).json({
+      success: true,
+      message: 'História de Usuário gerada com sucesso',
+      data: userStory,
+    });
+  }
+
+  /**
+   * Gera Resumo para uma transcrição
+   */
+  static async generateSummary(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      throw new AuthorizationError();
+    }
+
+    const { id } = req.params;
+    const transcriptionId = parseInt(id, 10);
+    const userId = req.user.userId;
+
+    const transcription = await verifyTranscriptionAccess(transcriptionId, userId);
+
+    // Verifica se já existe resumo
+    const [existingSummary] = await db
+      .select()
+      .from(summaries)
+      .where(eq(summaries.transcriptionId, transcriptionId))
+      .limit(1);
+
+    if (existingSummary) {
+      res.json({
+        success: true,
+        message: 'Resumo já existe',
+        data: existingSummary,
+      });
+      return;
+    }
+
+    // Gera resumo usando serviço de agentes
+    const agentService = ZelloMindServiceFactory.create();
+    const files = await db
+      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .from(transcriptionFiles)
+      .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
+    const context = buildContextFromTranscription(transcription, files as any);
+    const generatedContent = await agentService.generateSummary(context);
+
+    // Salva resumo no banco
+    await db.insert(summaries).values({
+      transcriptionId,
+      content: generatedContent,
+    });
+
+    // Busca o registro inserido
+    const [summary] = await db
+      .select()
+      .from(summaries)
+      .where(eq(summaries.transcriptionId, transcriptionId))
+      .limit(1);
+
+    res.status(201).json({
+      success: true,
+      message: 'Resumo gerado com sucesso',
+      data: summary,
+    });
+  }
+
+  /**
+   * Gera Cards para Business Map a partir de uma transcrição
+   */
+  static async generateCards(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      throw new AuthorizationError();
+    }
+
+    const { id } = req.params;
+    const transcriptionId = parseInt(id, 10);
+    const userId = req.user.userId;
+
+    const transcription = await verifyTranscriptionAccess(transcriptionId, userId);
+
+    // Verifica se já existe card
+    const [existingCard] = await db
+      .select()
+      .from(cards)
+      .where(eq(cards.transcriptionId, transcriptionId))
+      .limit(1);
+
+    if (existingCard) {
+      res.json({
+        success: true,
+        message: 'Cards já existem',
+        data: existingCard,
+      });
+      return;
+    }
+
+    // Gera cards usando serviço de agentes
+    const agentService = ZelloMindServiceFactory.create();
+    const files = await db
+      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .from(transcriptionFiles)
+      .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
+    const context = buildContextFromTranscription(transcription, files as any);
+    const generatedContent = await agentService.generateCards(context);
+
+    // Salva cards no banco
+    await db.insert(cards).values({
+      transcriptionId,
+      content: generatedContent,
+    });
+
+    // Busca o registro inserido
+    const [card] = await db
+      .select()
+      .from(cards)
+      .where(eq(cards.transcriptionId, transcriptionId))
+      .limit(1);
+
+    res.status(201).json({
+      success: true,
+      message: 'Cards gerados com sucesso',
+      data: card,
+    });
+  }
+}

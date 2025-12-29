@@ -1,0 +1,73 @@
+services:
+  # Banco de dados MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: zello_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: 405b7f9e
+      MYSQL_DATABASE: zello_transcription_hub
+      MYSQL_USER: zello_user
+      MYSQL_PASSWORD: zello_password_change_me
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - zello_network
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      timeout: 20s
+      retries: 10
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zello_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "3001:3001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+    networks:
+      - zello_network
+    command: npm run start
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: zello_frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - zello_network
+    command: npm run dev -- --host
+
+volumes:
+  mysql_data:
+
+
+networks:
+  zello_network:
+    driver: bridge

@@ -1,0 +1,128 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-neutral-200;
+  }
+  
+  body {
+    @apply bg-neutral-50 text-neutral-900 font-sans antialiased;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1 {
+    @apply text-3xl font-bold text-neutral-900;
+  }
+
+  h2 {
+    @apply text-2xl font-semibold text-neutral-900;
+  }
+
+  h3 {
+    @apply text-xl font-semibold text-neutral-800;
+  }
+
+  h4 {
+    @apply text-lg font-medium text-neutral-800;
+  }
+
+  code {
+    font-family: 'Fira Code', 'Courier New', monospace;
+  }
+}
+
+@layer components {
+  /* Scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-neutral-100;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-neutral-300 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-neutral-400;
+  }
+}
+
+/* Markdown styles */
+.prose {
+  @apply text-neutral-700;
+}
+
+.prose h1 {
+  @apply text-3xl font-bold text-neutral-900 mt-8 mb-4;
+}
+
+.prose h2 {
+  @apply text-2xl font-semibold text-neutral-900 mt-6 mb-3;
+}
+
+.prose h3 {
+  @apply text-xl font-semibold text-neutral-800 mt-4 mb-2;
+}
+
+.prose p {
+  @apply mb-4 leading-relaxed;
+}
+
+.prose ul, .prose ol {
+  @apply mb-4 pl-6;
+}
+
+.prose ul {
+  @apply list-disc;
+}
+
+.prose ol {
+  @apply list-decimal;
+}
+
+.prose li {
+  @apply mb-2;
+}
+
+.prose code {
+  @apply bg-neutral-100 text-primary-600 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+
+.prose pre {
+  @apply bg-neutral-900 text-neutral-100 p-4 rounded-lg overflow-x-auto mb-4;
+}
+
+.prose pre code {
+  @apply bg-transparent text-neutral-100 p-0;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-primary-500 pl-4 italic text-neutral-600 my-4;
+}
+
+.prose table {
+  @apply w-full border-collapse mb-4;
+}
+
+.prose th {
+  @apply bg-neutral-100 border border-neutral-300 px-4 py-2 text-left font-semibold;
+}
+
+.prose td {
+  @apply border border-neutral-300 px-4 py-2;
+}
+
+.prose a {
+  @apply text-primary-600 hover:text-primary-700 underline;
+}
+
