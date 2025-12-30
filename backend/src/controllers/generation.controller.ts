@@ -3,7 +3,10 @@ import { db } from '../config/db';
 import { transcriptions, userStories, summaries, cards, sharedTranscriptions, transcriptionFiles } from '../config/db/schema';
 import { eq, and, or } from 'drizzle-orm';
 import { ZelloMindServiceFactory } from '../services/zello-mind/ZelloMindServiceFactory';
+import { BusinessMapServiceFactory } from '../services/business-map/BusinessMapServiceFactory';
+import env from '../config/env';
 import { NotFoundError, AuthorizationError } from '../utils/errors';
+import { cleanAgentOutput } from '../utils/text-sanitizer';
 
 /**
  * Helper para verificar acesso à transcrição
@@ -93,11 +96,12 @@ export class GenerationController {
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
     const context = buildContextFromTranscription(transcription, files as any);
     const generatedContent = await agentService.generateUserStory(context);
+    const cleaned = cleanAgentOutput(generatedContent);
 
     // Salva HU no banco
     await db.insert(userStories).values({
       transcriptionId,
-      content: generatedContent,
+      content: cleaned,
     });
 
     // Busca o registro inserido
@@ -110,7 +114,7 @@ export class GenerationController {
     res.status(201).json({
       success: true,
       message: 'História de Usuário gerada com sucesso',
-      data: userStory,
+      data: { ...userStory, content: cleaned },
     });
   }
 
@@ -152,11 +156,12 @@ export class GenerationController {
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
     const context = buildContextFromTranscription(transcription, files as any);
     const generatedContent = await agentService.generateSummary(context);
+    const cleaned = cleanAgentOutput(generatedContent);
 
     // Salva resumo no banco
     await db.insert(summaries).values({
       transcriptionId,
-      content: generatedContent,
+      content: cleaned,
     });
 
     // Busca o registro inserido
@@ -169,7 +174,7 @@ export class GenerationController {
     res.status(201).json({
       success: true,
       message: 'Resumo gerado com sucesso',
-      data: summary,
+      data: { ...summary, content: cleaned },
     });
   }
 
@@ -211,11 +216,12 @@ export class GenerationController {
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
     const context = buildContextFromTranscription(transcription, files as any);
     const generatedContent = await agentService.generateCards(context);
+    const cleaned = cleanAgentOutput(generatedContent);
 
     // Salva cards no banco
     await db.insert(cards).values({
       transcriptionId,
-      content: generatedContent,
+      content: cleaned,
     });
 
     // Busca o registro inserido
@@ -225,10 +231,20 @@ export class GenerationController {
       .where(eq(cards.transcriptionId, transcriptionId))
       .limit(1);
 
+    // Tenta criar o card no Business Map, se configurado
+    if (env.BUSINESS_MAP_API_URL && env.BUSINESS_MAP_API_KEY) {
+      try {
+        const bmService = BusinessMapServiceFactory.create();
+        await bmService.createCardFromAgentText(cleaned);
+      } catch (err) {
+        console.error('Falha ao criar card no Business Map:', err);
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Cards gerados com sucesso',
-      data: card,
+      data: { ...card, content: cleaned },
     });
   }
 }

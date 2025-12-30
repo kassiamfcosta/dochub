@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { db } from '../config/db';
 import { transcriptions, userStories, summaries, cards, sharedTranscriptions, transcriptionFiles } from '../config/db/schema';
-import { eq, and, or, desc, like } from 'drizzle-orm';
+import { eq, and, or, desc, like, inArray } from 'drizzle-orm';
 import { NotFoundError, AuthorizationError } from '../utils/errors';
 
 /**
@@ -67,13 +67,50 @@ export class TranscriptionController {
       isOwner: t.userId === userId,
     }));
 
-    // Conta total de transcrições
-    const totalCount = uniqueTranscriptions.length;
+    // Marca presença de HU/Resumo/Cards
+    const ids = uniqueTranscriptions.map((t) => t.id);
+    let huSet = new Set<number>();
+    let summarySet = new Set<number>();
+    let cardSet = new Set<number>();
+
+    if (ids.length > 0) {
+      const huRows = await db
+        .select({ transcriptionId: userStories.transcriptionId })
+        .from(userStories)
+        .where(inArray(userStories.transcriptionId, ids));
+      const summaryRows = await db
+        .select({ transcriptionId: summaries.transcriptionId })
+        .from(summaries)
+        .where(inArray(summaries.transcriptionId, ids));
+      const cardRows = await db
+        .select({ transcriptionId: cards.transcriptionId })
+        .from(cards)
+        .where(inArray(cards.transcriptionId, ids));
+      huSet = new Set(huRows.map((r) => r.transcriptionId));
+      summarySet = new Set(summaryRows.map((r) => r.transcriptionId));
+      cardSet = new Set(cardRows.map((r) => r.transcriptionId));
+    }
+
+    const enriched = uniqueTranscriptions.map((t) => ({
+      ...t,
+      hasUserStory: huSet.has(t.id),
+      hasSummary: summarySet.has(t.id),
+      hasCard: cardSet.has(t.id),
+    }));
+
+    // Estatísticas
+    const totalCount = enriched.length;
+    const huCount = enriched.filter(t => t.hasUserStory).length;
+    const summaryCount = enriched.filter(t => t.hasSummary).length;
+    const cardCount = enriched.filter(t => t.hasCard).length;
 
     res.json({
       success: true,
-      data: uniqueTranscriptions,
+      data: enriched,
       total: totalCount,
+      huCount,
+      summaryCount,
+      cardCount,
     });
   }
 

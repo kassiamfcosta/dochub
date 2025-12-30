@@ -26,6 +26,10 @@ const envSchema = z.object({
   AGENT_RESUMO_ID: z.string().default('692701451c546166c00efdf4'),
   AGENT_CARDS_ID: z.string().default('69261314fffadaeffcb2387c'),
 
+  // Business Map (opcional, usado para criação automática de cards)
+  BUSINESS_MAP_API_URL: z.string().url().optional(),
+  BUSINESS_MAP_API_KEY: z.string().optional(),
+
   // Email (opcional)
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.string().optional(),

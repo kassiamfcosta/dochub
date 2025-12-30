@@ -74,3 +74,30 @@ export function prepareTextForJson(content: string): string {
 
     return sanitized;
 }
+
+export function cleanAgentOutput(text: string): string {
+    if (!text) return '';
+    let t = text.trim();
+    const markers = [
+        'História de Usuário',
+        'Historia de Usuario',
+        'User Story',
+        'Resumo',
+        'Cards',
+        'Card'
+    ];
+    let startIdx = -1;
+    for (const m of markers) {
+        const idx = t.toLowerCase().indexOf(m.toLowerCase());
+        if (idx !== -1 && (startIdx === -1 || idx < startIdx)) {
+            startIdx = idx;
+        }
+    }
+    if (startIdx > 0) {
+        t = t.slice(startIdx);
+    }
+    t = t.replace(/^\s*(entendido[!.]?|ok[!.]?|certo[!.]?)[\s\S]*?(?=(história de usuário|historia de usuario|user story|resumo|cards|card))/i, '');
+    t = t.replace(/\bpróximos passos\b[\s\S]*?(?=(história de usuário|historia de usuario|user story|resumo|cards|card))/i, '');
+    t = t.replace(/\bobservaç[aã]o\b[\s\S]*$/i, '');
+    return t.trim();
+}
