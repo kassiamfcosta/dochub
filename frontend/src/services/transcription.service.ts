@@ -16,12 +16,20 @@ export interface Transcription {
   description?: string;
   createdAt: string;
   updatedAt: string;
+  hasUserStory?: boolean;
+  hasSummary?: boolean;
+  hasCard?: boolean;
   userStory?: {
     id: number;
     content: string;
     createdAt: string;
   };
   summary?: {
+    id: number;
+    content: string;
+    createdAt: string;
+  };
+  card?: {
     id: number;
     content: string;
     createdAt: string;
@@ -58,6 +66,9 @@ export interface ApiResponse<T = any> {
   message?: string;
   data?: T;
   total?: number;
+  huCount?: number;
+  summaryCount?: number;
+  cardCount?: number;
 }
 
 /**
@@ -118,6 +129,13 @@ export const transcriptionService = {
    */
   async generateSummary(id: number): Promise<ApiResponse> {
     const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-summary`);
+    return response.data;
+  },
+  /**
+   * Gera Cards
+   */
+  async generateCards(id: number): Promise<ApiResponse> {
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-cards`);
     return response.data;
   },
 

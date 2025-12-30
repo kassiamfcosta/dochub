@@ -36,11 +36,7 @@ const LoginPage: React.FC = () => {
         <div className="max-w-md w-full space-y-8 animate-fade-in">
           <div>
             <div className="flex justify-center mb-6">
-              <div className="bg-primary-600 text-white rounded-xl p-3">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
+              <img src="/logo-quadrada.svg" alt="Zello" className="w-10 h-10" />
             </div>
             <h2 className="text-center text-3xl font-bold text-neutral-900">
               Bem-vindo de volta
@@ -75,12 +71,6 @@ const LoginPage: React.FC = () => {
                 }
               />
 
-              <div className="text-sm text-right">
-                <Link to="/forgot-password" className="font-medium text-primary-600 hover:text-primary-700 transition-colors">
-                  Esqueceu a senha?
-                </Link>
-              </div>
-
               <Input
                 label="Senha"
                 type="password"
@@ -94,6 +84,12 @@ const LoginPage: React.FC = () => {
                   </svg>
                 }
               />
+
+              <div className="text-sm text-right">
+                <Link to="/forgot-password" className="font-medium text-primary-600 hover:text-primary-700 transition-colors">
+                  Esqueceu a senha?
+                </Link>
+              </div>
             </div>
 
             <div>
@@ -125,7 +121,7 @@ const LoginPage: React.FC = () => {
       {/* Right Side - Branding */}
       <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-primary-600 to-primary-800 items-center justify-center p-12">
         <div className="max-w-md text-white">
-          <h1 className="text-4xl font-bold mb-4">Zello Transcription Hub</h1>
+          <h1 className="text-5xl font-extrabold mb-4">Zello Transcription Hub</h1>
           <p className="text-xl text-primary-100 mb-8">
             Transforme suas reuniões em Histórias de Usuário e Resumos com IA
           </p>
@@ -137,7 +133,7 @@ const LoginPage: React.FC = () => {
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Geração Automática</h3>
+                <h3 className="font-semibold mb-1 text-white">Geração Automática</h3>
                 <p className="text-primary-100">Histórias de Usuário e Resumos gerados por IA</p>
               </div>
             </div>
@@ -148,7 +144,7 @@ const LoginPage: React.FC = () => {
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Seguro e Confiável</h3>
+                <h3 className="font-semibold mb-1 text-white">Seguro e Confiável</h3>
                 <p className="text-primary-100">Seus dados protegidos e organizados</p>
               </div>
             </div>
@@ -159,7 +155,7 @@ const LoginPage: React.FC = () => {
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold mb-1">Colaboração</h3>
+                <h3 className="font-semibold mb-1 text-white">Colaboração</h3>
                 <p className="text-primary-100">Compartilhe transcrições com sua equipe</p>
               </div>
             </div>

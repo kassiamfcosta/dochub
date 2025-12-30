@@ -10,6 +10,8 @@ import { useToast } from '../hooks/useToast';
 
 const DashboardPage: React.FC = () => {
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
+  const [huCount, setHuCount] = useState(0);
+  const [summaryCount, setSummaryCount] = useState(0);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -31,6 +33,10 @@ const DashboardPage: React.FC = () => {
       const response = await transcriptionService.list(search || undefined);
       if (response.success && response.data) {
         setTranscriptions(response.data);
+        const computedHU = response.data.filter(t => t.hasUserStory || !!t.userStory).length;
+        const computedSummary = response.data.filter(t => t.hasSummary || !!t.summary).length;
+        setHuCount(response.huCount ?? computedHU);
+        setSummaryCount(response.summaryCount ?? computedSummary);
       }
     } catch (err: any) {
       setError(err.message || 'Erro ao carregar transcrições');
@@ -80,8 +86,8 @@ const DashboardPage: React.FC = () => {
 
   const stats = {
     total: transcriptions.length,
-    withHU: transcriptions.filter(t => t.userStory).length,
-    withSummary: transcriptions.filter(t => t.summary).length,
+    withHU: huCount,
+    withSummary: summaryCount,
   };
 
   return (
@@ -92,12 +98,8 @@ const DashboardPage: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="bg-primary-600 text-white rounded-lg p-2">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h1 className="text-xl font-bold text-neutral-900">Zello Transcription Hub</h1>
+              <img src="/logo-retangular.svg" alt="Zello" className="h-8 w-auto" />
+              <h1 className="text-2xl font-bold text-neutral-900">Transcription Hub</h1>
             </div>
 
             {/* Search Bar */}

@@ -4,8 +4,9 @@ import ReactMarkdown from 'react-markdown';
 import { transcriptionService, type Transcription, type TranscriptionFile } from '../services/transcription.service';
 import Card from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
+import { exportMarkdown, exportTxt, exportDoc, exportPdfViaPrint } from '../utils/export';
 
-type TabType = 'transcription' | 'userStory' | 'summary';
+type TabType = 'transcription' | 'userStory' | 'summary' | 'cards';
 
 const TranscriptionPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +17,7 @@ const TranscriptionPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('transcription');
   const [generatingHU, setGeneratingHU] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [generatingCards, setGeneratingCards] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -44,10 +46,12 @@ const TranscriptionPage: React.FC = () => {
       const response = await transcriptionService.getById(parseInt(id!, 10));
       if (response.success && response.data) {
         setTranscription(response.data);
-        if (response.data.userStory && !response.data.summary) {
+        if (response.data.userStory && !response.data.summary && !response.data.card) {
           setActiveTab('userStory');
-        } else if (response.data.summary && !response.data.userStory) {
+        } else if (response.data.summary && !response.data.userStory && !response.data.card) {
           setActiveTab('summary');
+        } else if (response.data.card && !response.data.userStory && !response.data.summary) {
+          setActiveTab('cards');
         }
       } else {
         setError('Transcrição não encontrada');
@@ -96,6 +100,25 @@ const TranscriptionPage: React.FC = () => {
       setError(err.message || 'Erro ao gerar Resumo');
     } finally {
       setGeneratingSummary(false);
+    }
+  };
+
+  const handleGenerateCards = async () => {
+    if (!id) {
+      return;
+    }
+    setGeneratingCards(true);
+    setError('');
+    try {
+      const response = await transcriptionService.generateCards(parseInt(id, 10));
+      if (response.success) {
+        await loadTranscription();
+        setActiveTab('cards');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro ao gerar Cards');
+    } finally {
+      setGeneratingCards(false);
     }
   };
 
@@ -217,7 +240,33 @@ const TranscriptionPage: React.FC = () => {
     { id: 'transcription' as TabType, label: 'Contexto Documental', icon: '📄' },
     { id: 'userStory' as TabType, label: 'História de Usuário', icon: '📋', badge: transcription.userStory ? '✓' : null },
     { id: 'summary' as TabType, label: 'Resumo', icon: '📝', badge: transcription.summary ? '✓' : null },
+    { id: 'cards' as TabType, label: 'Cards', icon: '🗂️', badge: transcription.card ? '✓' : null },
   ];
+
+  const handleExport = (format: 'md' | 'txt' | 'doc' | 'pdf') => {
+    if (!transcription) return;
+    let content = '';
+    let suffix = '';
+    if (activeTab === 'userStory' && transcription.userStory) {
+      content = transcription.userStory.content || '';
+      suffix = 'HU';
+    } else if (activeTab === 'summary' && transcription.summary) {
+      content = transcription.summary.content || '';
+      suffix = 'Resumo';
+    } else if (activeTab === 'cards' && transcription.card) {
+      content = transcription.card.content || '';
+      suffix = 'Cards';
+    } else if (activeTab === 'transcription') {
+      content = transcription.content || '';
+      suffix = 'Contexto';
+    }
+    if (!content.trim()) return;
+    const base = `${transcription.title} - ${suffix}`;
+    if (format === 'md') exportMarkdown(base, content);
+    if (format === 'txt') exportTxt(base, content);
+    if (format === 'doc') exportDoc(base, content);
+    if (format === 'pdf') exportPdfViaPrint(base, content);
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -406,6 +455,29 @@ const TranscriptionPage: React.FC = () => {
                         </>
                       )}
                     </Button>
+                    <Button
+                      onClick={handleGenerateCards}
+                      disabled={generatingCards || !!transcription.card}
+                      loading={generatingCards}
+                      className="w-full justify-start"
+                      variant={transcription.card ? 'outline' : 'primary'}
+                    >
+                      {transcription.card ? (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Cards Gerados
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Gerar Cards
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -436,6 +508,10 @@ const TranscriptionPage: React.FC = () => {
                       }
                       if (tab.id === 'summary' && !transcription.summary) {
                         handleGenerateSummary();
+                        return;
+                      }
+                      if (tab.id === 'cards' && !transcription.card) {
+                        handleGenerateCards();
                         return;
                       }
                       setActiveTab(tab.id);
@@ -547,9 +623,17 @@ const TranscriptionPage: React.FC = () => {
                 {activeTab === 'userStory' && (
                   <div>
                     {transcription.userStory ? (
-                      <div className="prose max-w-none">
-                        <ReactMarkdown>{transcription.userStory.content}</ReactMarkdown>
-                      </div>
+                      <>
+                        <div className="flex justify-end gap-2 mb-4">
+                          <Button size="sm" variant="outline" onClick={() => handleExport('md')}>Salvar .md</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleExport('doc')}>Salvar .doc</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleExport('pdf')}>Salvar .pdf</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleExport('txt')}>Salvar .txt</Button>
+                        </div>
+                        <div className="prose max-w-none">
+                          <ReactMarkdown>{transcription.userStory.content}</ReactMarkdown>
+                        </div>
+                      </>
                     ) : (
                       <div className="text-center py-12">
                         <div className="bg-primary-100 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
@@ -574,9 +658,17 @@ const TranscriptionPage: React.FC = () => {
                 {activeTab === 'summary' && (
                   <div>
                     {transcription.summary ? (
-                      <div className="prose max-w-none">
-                        <ReactMarkdown>{transcription.summary.content}</ReactMarkdown>
-                      </div>
+                      <>
+                        <div className="flex justify-end gap-2 mb-4">
+                          <Button size="sm" variant="outline" onClick={() => handleExport('md')}>Salvar .md</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleExport('doc')}>Salvar .doc</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleExport('pdf')}>Salvar .pdf</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleExport('txt')}>Salvar .txt</Button>
+                        </div>
+                        <div className="prose max-w-none">
+                          <ReactMarkdown>{transcription.summary.content}</ReactMarkdown>
+                        </div>
+                      </>
                     ) : (
                       <div className="text-center py-12">
                         <div className="bg-warning-light rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
@@ -596,6 +688,25 @@ const TranscriptionPage: React.FC = () => {
                       </div>
                     )}
                   </div>
+                )}
+                {activeTab === 'cards' && (
+                  <>
+                    {transcription.card && (
+                      <div className="flex justify-end gap-2 mb-4">
+                        <Button size="sm" variant="outline" onClick={() => handleExport('md')}>Salvar .md</Button>
+                        <Button size="sm" variant="outline" onClick={() => handleExport('doc')}>Salvar .doc</Button>
+                        <Button size="sm" variant="outline" onClick={() => handleExport('pdf')}>Salvar .pdf</Button>
+                        <Button size="sm" variant="outline" onClick={() => handleExport('txt')}>Salvar .txt</Button>
+                      </div>
+                    )}
+                    <div className="prose max-w-none">
+                      {transcription.card ? (
+                        <ReactMarkdown>{transcription.card.content}</ReactMarkdown>
+                      ) : (
+                        <p className="text-neutral-600">Clique em "Gerar Cards" para criar os cards desta transcrição.</p>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </Card>
