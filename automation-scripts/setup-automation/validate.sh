@@ -104,7 +104,7 @@ if [ -f "backend/.env" ]; then
     # Verificar variáveis críticas
     if grep -q "DATABASE_URL=" backend/.env && \
        grep -q "JWT_SECRET=" backend/.env && \
-       grep -q "ZELLO_MIND_API_KEY=" backend/.env; then
+       grep -q "ZELLO_API_KEY=" backend/.env; then
         print_success "Backend: Variáveis críticas configuradas"
     else
         print_warning "Backend: Algumas variáveis críticas podem estar faltando"

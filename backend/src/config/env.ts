@@ -29,6 +29,9 @@ const envSchema = z.object({
   // Business Map (opcional, usado para criação automática de cards)
   BUSINESS_MAP_API_URL: z.string().url().optional(),
   BUSINESS_MAP_API_KEY: z.string().optional(),
+  BUSINESS_MAP_BOARD_ID: z.string().optional(),
+  BUSINESS_MAP_WORKFLOW_ID: z.string().optional(),
+  BUSINESS_MAP_COLUMN_ID: z.string().optional(),
 
   // Email (opcional)
   SMTP_HOST: z.string().optional(),
@@ -36,6 +39,7 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
+  EMAIL_FORCE_SMTP: z.string().optional(),
 });
 
 type Env = z.infer<typeof envSchema>;

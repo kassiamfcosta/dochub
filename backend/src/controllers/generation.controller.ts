@@ -34,7 +34,7 @@ async function verifyTranscriptionAccess(transcriptionId: number, userId: number
     .limit(1);
 
   if (!result.length || !result[0].transcription) {
-    throw new NotFoundError('Transcrição não encontrada');
+    throw new NotFoundError('Contexto não encontrado');
   }
 
   return result[0].transcription;
@@ -58,6 +58,35 @@ function buildContextFromTranscription(t: any, files: Array<{ name: string; size
  * Controller de geração de conteúdo (HU, Resumos e Cards)
  */
 export class GenerationController {
+  /**
+   * Gera lista prévia de HUs para validação
+   */
+  static async previewUserStories(req: Request, res: Response): Promise<void> {
+    if (!req.user) {
+      throw new AuthorizationError();
+    }
+
+    const { id } = req.params;
+    const transcriptionId = parseInt(id, 10);
+    const userId = req.user.userId;
+
+    const transcription = await verifyTranscriptionAccess(transcriptionId, userId);
+
+    const agentService = ZelloMindServiceFactory.create();
+    const files = await db
+      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .from(transcriptionFiles)
+      .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
+    const context = buildContextFromTranscription(transcription, files as any);
+    const generatedContent = await agentService.generateUserStoryPreview(context);
+    const cleaned = cleanAgentOutput(generatedContent);
+
+    res.status(200).json({
+      success: true,
+      message: 'Lista prévia de HUs gerada com sucesso',
+      data: cleaned,
+    });
+  }
   /**
    * Gera História de Usuário para uma transcrição
    */
@@ -214,8 +243,26 @@ export class GenerationController {
       .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
       .from(transcriptionFiles)
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
-    const context = buildContextFromTranscription(transcription, files as any);
-    const generatedContent = await agentService.generateCards(context);
+    const contextFromTranscription = buildContextFromTranscription(transcription, files as any);
+
+    let huContent = '';
+    const [existingHU] = await db
+      .select()
+      .from(userStories)
+      .where(eq(userStories.transcriptionId, transcriptionId))
+      .limit(1);
+    if (existingHU?.content) {
+      huContent = existingHU.content;
+    } else {
+      const generatedHU = await agentService.generateUserStory(contextFromTranscription);
+      huContent = cleanAgentOutput(generatedHU);
+      await db.insert(userStories).values({
+        transcriptionId,
+        content: huContent,
+      });
+    }
+
+    const generatedContent = await agentService.generateCards(huContent);
     const cleaned = cleanAgentOutput(generatedContent);
 
     // Salva cards no banco
@@ -232,7 +279,7 @@ export class GenerationController {
       .limit(1);
 
     // Tenta criar o card no Business Map, se configurado
-    if (env.BUSINESS_MAP_API_URL && env.BUSINESS_MAP_API_KEY) {
+    if (env.BUSINESS_MAP_API_URL && env.BUSINESS_MAP_API_KEY && env.BUSINESS_MAP_BOARD_ID) {
       try {
         const bmService = BusinessMapServiceFactory.create();
         await bmService.createCardFromAgentText(cleaned);

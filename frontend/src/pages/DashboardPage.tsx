@@ -39,7 +39,7 @@ const DashboardPage: React.FC = () => {
         setSummaryCount(response.summaryCount ?? computedSummary);
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar transcrições');
+      setError(err.message || 'Erro ao carregar contextos');
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,7 @@ const DashboardPage: React.FC = () => {
       setArchiving(true);
       const response = await transcriptionService.delete(transcriptionToArchive.id);
       if (!response.success) {
-        setError(response.message || 'Erro ao arquivar transcrição');
+        setError(response.message || 'Erro ao arquivar contexto');
         return;
       }
 
@@ -67,9 +67,9 @@ const DashboardPage: React.FC = () => {
         prev.filter((t) => t.id !== transcriptionToArchive.id)
       );
       setTranscriptionToArchive(null);
-      showToast('Transcrição arquivada com sucesso.', 'success');
+      showToast('Contexto arquivado com sucesso.', 'success');
     } catch (err: any) {
-      setError(err.message || 'Erro ao arquivar transcrição');
+      setError(err.message || 'Erro ao arquivar contexto');
     } finally {
       setArchiving(false);
     }
@@ -98,8 +98,8 @@ const DashboardPage: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <img src="/logo-retangular.svg" alt="Zello" className="h-8 w-auto" />
-              <h1 className="text-2xl font-bold text-neutral-900">Transcription Hub</h1>
+              <img src="/logo-retangular.svg" alt="Doc Hub" className="h-8 w-auto" />
+              <h1 className="text-2xl font-bold text-neutral-900">Doc Hub</h1>
             </div>
 
             {/* Search Bar */}
@@ -112,7 +112,7 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <input
                   type="text"
-                  placeholder="Buscar transcrições..."
+                  placeholder="Buscar contextos..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
@@ -175,7 +175,7 @@ const DashboardPage: React.FC = () => {
             <div className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-neutral-600">Total de Transcrições</p>
+                  <p className="text-sm font-medium text-neutral-600">Total de Contextos</p>
                   <p className="text-3xl font-bold text-neutral-900 mt-2">{stats.total}</p>
                 </div>
                 <div className="bg-primary-100 rounded-lg p-3">
@@ -224,7 +224,7 @@ const DashboardPage: React.FC = () => {
         <div className="mb-6 md:hidden">
           <Input
             type="text"
-            placeholder="Buscar transcrições..."
+            placeholder="Buscar contextos..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             icon={
@@ -237,12 +237,12 @@ const DashboardPage: React.FC = () => {
 
         {/* Header Section */}
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-neutral-900">Transcrições</h2>
+          <h2 className="text-2xl font-bold text-neutral-900">Contextos</h2>
           <Button onClick={() => setIsModalOpen(true)}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Nova Transcrição
+            Novo Contexto
           </Button>
         </div>
 
@@ -278,14 +278,14 @@ const DashboardPage: React.FC = () => {
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-neutral-900 mb-2">
-                {search ? 'Nenhuma transcrição encontrada' : 'Nenhuma transcrição ainda'}
+                {search ? 'Nenhum contexto encontrado' : 'Nenhum contexto ainda'}
               </h3>
               <p className="text-neutral-600 mb-6">
-                {search ? 'Tente buscar com outros termos' : 'Comece criando sua primeira transcrição'}
+                {search ? 'Tente buscar com outros termos' : 'Comece criando seu primeiro contexto'}
               </p>
               {!search && (
                 <Button onClick={() => setIsModalOpen(true)}>
-                  Criar Primeira Transcrição
+                  Criar Primeiro Contexto
                 </Button>
               )}
             </div>
@@ -319,7 +319,7 @@ const DashboardPage: React.FC = () => {
                           setTranscriptionToArchive(transcription);
                           setError('');
                         }}
-                        aria-label="Arquivar transcrição"
+                        aria-label="Arquivar contexto"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-7 0V5a2 2 0 012-2h3.5a2 2 0 012 2v2" />
@@ -336,23 +336,43 @@ const DashboardPage: React.FC = () => {
                         year: 'numeric'
                       })}
                     </span>
-                    <div className="flex gap-2">
-                      {transcription.userStory && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-success-light text-success text-xs font-medium rounded-full">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          HU
-                        </span>
-                      )}
-                      {transcription.summary && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-warning-light text-warning text-xs font-medium rounded-full">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Resumo
-                        </span>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-flex items-center justify-center w-7 h-7 rounded-md ${transcription.hasUserStory ? 'bg-success-light text-success' : 'bg-neutral-100 text-neutral-400'}`}
+                        title="História de Usuário"
+                        aria-label="História de Usuário"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5h6M9 9h6M9 13h6M5 7h.01M5 11h.01M5 15h.01" />
+                        </svg>
+                      </span>
+                      <span
+                        className={`inline-flex items-center justify-center w-7 h-7 rounded-md ${transcription.hasSummary ? 'bg-warning-light text-warning' : 'bg-neutral-100 text-neutral-400'}`}
+                        title="Resumo"
+                        aria-label="Resumo"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 11h10M7 15h10" />
+                        </svg>
+                      </span>
+                      <span
+                        className={`inline-flex items-center justify-center w-7 h-7 rounded-md ${transcription.hasCard ? 'bg-primary-100 text-primary-600' : 'bg-neutral-100 text-neutral-400'}`}
+                        title="Card"
+                        aria-label="Card"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16v12H4zM8 10h8M8 14h5" />
+                        </svg>
+                      </span>
+                      <span
+                        className={`inline-flex items-center justify-center w-7 h-7 rounded-md bg-neutral-100 text-neutral-400`}
+                        title="Relatório de Entrega"
+                        aria-label="Relatório de Entrega"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7 4h10a2 2 0 012 2v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2z" />
+                        </svg>
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -373,11 +393,11 @@ const DashboardPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-large max-w-md w-full">
             <div className="px-6 py-4 border-b border-neutral-200">
-              <h2 className="text-lg font-semibold text-neutral-900">Arquivar transcrição</h2>
+              <h2 className="text-lg font-semibold text-neutral-900">Arquivar contexto</h2>
             </div>
             <div className="px-6 py-4">
               <p className="text-sm text-neutral-700 mb-4">
-                Tem certeza que deseja arquivar esta transcrição? Ela não aparecerá mais na lista principal.
+                Tem certeza que deseja arquivar este contexto? Ele não aparecerá mais na lista principal.
               </p>
               <p className="text-sm font-medium text-neutral-900 line-clamp-2">
                 {transcriptionToArchive.title}

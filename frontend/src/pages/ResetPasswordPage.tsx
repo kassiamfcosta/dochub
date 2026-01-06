@@ -57,10 +57,10 @@ const ResetPasswordPage: React.FC = () => {
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-            <Card className="w-full max-w-md">
+            <Card className="w-full max-w-md bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100">
                 <CardHeader>
-                    <CardTitle className="text-2xl">Redefinir Senha</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-2xl text-neutral-900 dark:text-neutral-100">Redefinir Senha</CardTitle>
+                    <CardDescription className="text-neutral-600 dark:text-neutral-300">
                         Digite sua nova senha abaixo.
                     </CardDescription>
                 </CardHeader>
@@ -68,7 +68,7 @@ const ResetPasswordPage: React.FC = () => {
                     <form onSubmit={handleSubmit}>
                         <div className="grid gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="password">Nova Senha</Label>
+                                <Label htmlFor="password" className="text-neutral-800 dark:text-neutral-200">Nova Senha</Label>
                                 <Input
                                     id="password"
                                     type="password"
@@ -79,7 +79,7 @@ const ResetPasswordPage: React.FC = () => {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="confirm-password">Confirmar Nova Senha</Label>
+                                <Label htmlFor="confirm-password" className="text-neutral-800 dark:text-neutral-200">Confirmar Nova Senha</Label>
                                 <Input
                                     id="confirm-password"
                                     type="password"
@@ -94,8 +94,8 @@ const ResetPasswordPage: React.FC = () => {
                             </Button>
                         </div>
                     </form>
-                    {message && <p className="mt-4 text-sm text-green-600">{message}</p>}
-                    {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
+                    {message && <p className="mt-4 text-sm text-green-600 dark:text-green-400">{message}</p>}
+                    {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
                 </CardContent>
             </Card>
         </div>

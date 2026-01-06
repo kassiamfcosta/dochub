@@ -30,7 +30,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3001
       DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
       FRONTEND_URL: http://localhost:5173
@@ -42,7 +42,7 @@ services:
 
     networks:
       - zello_network
-    command: npm run start
+    command: sh -c "npm run db:push && npm run start"
 
   # Frontend React
   frontend:
@@ -57,9 +57,6 @@ services:
       - "5173:5173"
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     networks:
       - zello_network
     command: npm run dev -- --host

@@ -1,7 +1,7 @@
 {
-  "name": "zello-transcription-hub-frontend",
+  "name": "doc-hub-frontend",
   "version": "1.0.0",
-  "description": "Frontend para Zello Transcription Hub",
+  "description": "Frontend para Doc Hub",
   "type": "module",
   "scripts": {
     "dev": "vite",

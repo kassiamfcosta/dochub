@@ -80,7 +80,7 @@ if [ ! -f ".env" ]; then
         echo "Edite backend/.env e configure:"
         echo "  - DATABASE_URL (MySQL)"
         echo "  - JWT_SECRET (gere um secret seguro)"
-        echo "  - ZELLO_MIND_API_KEY (sua chave da API)"
+        echo "  - ZELLO_API_KEY (sua chave da API)"
         echo ""
         read -p "Pressione ENTER após editar o .env..."
     else

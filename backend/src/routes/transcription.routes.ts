@@ -18,6 +18,7 @@ router.get('/:id', asyncHandler(TranscriptionController.getById));
 router.put('/:id', validate(updateTranscriptionSchema), asyncHandler(TranscriptionController.update));
 router.delete('/:id', asyncHandler(TranscriptionController.delete));
 
+router.post('/:id/preview-user-stories', asyncHandler(GenerationController.previewUserStories));
 router.post('/:id/generate-user-story', asyncHandler(GenerationController.generateUserStory));
 router.post('/:id/generate-summary', asyncHandler(GenerationController.generateSummary));
 router.post('/:id/generate-cards', asyncHandler(GenerationController.generateCards));

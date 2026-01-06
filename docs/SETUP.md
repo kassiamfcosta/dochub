@@ -1,6 +1,6 @@
 # Guia de Instalação e Deploy
 
-Este guia fornece instruções passo a passo para configurar e executar o Zello Transcription Hub em ambiente de desenvolvimento e produção.
+Este guia fornece instruções passo a passo para configurar e executar o Doc Hub em ambiente de desenvolvimento e produção.
 
 ## Pré-requisitos
 

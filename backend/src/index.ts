@@ -32,7 +32,7 @@ app.get('/health', (_req, res) => {
 // Rota raiz
 app.get('/', (_req, res) => {
   res.json({
-    message: 'Zello Transcription Hub API',
+    message: 'Doc Hub API',
     version: '1.0.0',
     endpoints: {
       health: '/health',
@@ -45,7 +45,7 @@ app.get('/', (_req, res) => {
 
 // Rotas
 app.get('/api', (_req, res) => {
-  res.json({ message: 'Zello Transcription Hub API' });
+  res.json({ message: 'Doc Hub API' });
 });
 
 app.use('/api/auth', authRoutes);

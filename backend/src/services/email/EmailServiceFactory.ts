@@ -12,7 +12,9 @@ export class EmailServiceFactory {
    */
   static create(): EmailService {
     if (!this.instance) {
-      if (env.SMTP_HOST) {
+      if (env.NODE_ENV === 'development' && env.EMAIL_FORCE_SMTP !== 'true') {
+        this.instance = new BasicEmailService();
+      } else if (env.SMTP_HOST) {
         this.instance = new NodemailerEmailService();
       } else {
         this.instance = new BasicEmailService();

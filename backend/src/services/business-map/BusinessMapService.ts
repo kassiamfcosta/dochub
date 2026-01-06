@@ -10,14 +10,9 @@ export interface BusinessMapCardInput {
 }
 
 export interface BusinessMapCreateCardResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    id?: string;
-    name?: string;
-    type?: string;
-    description?: string;
-  };
+  id?: number;
+  title?: string;
+  description?: string;
 }
 
 /**
@@ -35,7 +30,6 @@ export class BusinessMapService {
       baseURL: env.BUSINESS_MAP_API_URL,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${env.BUSINESS_MAP_API_KEY}`,
       },
       timeout: 30000,
     });
@@ -45,10 +39,24 @@ export class BusinessMapService {
    * Cria um card no Business Map
    */
   async createCard(card: BusinessMapCardInput): Promise<BusinessMapCreateCardResponse> {
-    const response = await this.client.post<BusinessMapCreateCardResponse>('/cards', card);
-    if (!response.data?.success) {
-      throw new AppError(500, response.data?.message || 'Falha ao criar card no Business Map');
+    if (!env.BUSINESS_MAP_BOARD_ID) {
+      throw new AppError(400, 'BUSINESS_MAP_BOARD_ID não configurado');
     }
+    const payload: Record<string, any> = {
+      board_id: parseInt(env.BUSINESS_MAP_BOARD_ID, 10),
+      title: card.name,
+      description: card.description,
+      owner_user_id: null,
+    };
+    if (env.BUSINESS_MAP_WORKFLOW_ID) {
+      payload.workflow_id = parseInt(env.BUSINESS_MAP_WORKFLOW_ID, 10);
+    }
+    if (env.BUSINESS_MAP_COLUMN_ID) {
+      payload.column_id = parseInt(env.BUSINESS_MAP_COLUMN_ID, 10);
+    }
+    const response = await this.client.post('/cards', payload, {
+      params: { apikey: env.BUSINESS_MAP_API_KEY },
+    });
     return response.data;
   }
 

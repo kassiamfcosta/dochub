@@ -43,9 +43,9 @@ export class AuthService {
         const resetLink = `${env.FRONTEND_URL}/reset-password?token=${token}`;
         await sendEmail({
             to: email,
-            subject: 'Redefinição de Senha - Zello Transcription Hub',
+            subject: 'Redefinição de Senha - Doc Hub',
             html: `
-                <p>Você solicitou a redefinição de senha para sua conta no Zello Transcription Hub.</p>
+                <p>Você solicitou a redefinição de senha para sua conta no Doc Hub.</p>
                 <p>Clique no link abaixo para redefinir sua senha:</p>
                 <p><a href="${resetLink}">${resetLink}</a></p>
                 <p>Este link expirará em 1 hora.</p>
@@ -85,9 +85,9 @@ export class AuthService {
         // Opcional: Enviar email de confirmação de redefinição de senha
         await sendEmail({
             to: user.email,
-            subject: 'Senha Redefinida com Sucesso - Zello Transcription Hub',
+            subject: 'Senha Redefinida com Sucesso - Doc Hub',
             html: `
-                <p>Sua senha para a conta no Zello Transcription Hub foi redefinida com sucesso.</p>
+                <p>Sua senha para a conta no Doc Hub foi redefinida com sucesso.</p>
                 <p>Se você não realizou esta ação, por favor, entre em contato conosco imediatamente.</p>
             `,
         });

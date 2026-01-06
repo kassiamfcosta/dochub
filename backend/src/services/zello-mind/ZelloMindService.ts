@@ -6,7 +6,7 @@ import { sanitizeTextForJson } from '../../utils/text-sanitizer';
 /**
  * Tipos de agentes disponíveis
  */
-export type AgentType = 'HU' | 'RESUMO' | 'CARDS';
+export type AgentType = 'HU' | 'HU_PREVIEW' | 'RESUMO' | 'CARDS';
 
 /**
  * Interface para resposta da API de Execução de Agente
@@ -32,6 +32,7 @@ interface AgentExecuteRequest {
  */
 const AGENT_IDS: Record<AgentType, () => string> = {
   HU: () => env.AGENT_HU_ID,
+  HU_PREVIEW: () => env.AGENT_HU_ID,
   RESUMO: () => env.AGENT_RESUMO_ID,
   CARDS: () => env.AGENT_CARDS_ID,
 };
@@ -78,25 +79,42 @@ export class ZelloMindService {
       return [
         ' INSTRUÇÃO (HU): Retorne SOMENTE a lista completa de Histórias de Usuário, cada uma seguindo exatamente a estrutura e ordem abaixo, sem introduções, próximos passos gerais ou observações fora das seções.',
         ' Estrutura obrigatória por HU:',
-        ' 1. Nome da História de Usuário',
-        ' 2. História de usuário',
-        ' 3. Tipo (Feature ou Melhoria)',
-        ' 4. Critérios de aceitação (numerados, objetivos e verificáveis)',
-        ' 5. Regras de negócios',
+        ' 1. Nome da História de Usuário ([Funcionalidade] – [Ação principal])',
+        ' 2. Versionamento (Versão: 1.0; Histórico de alteração: ... apenas quando houver evolução explicitamente solicitada)',
+        ' 3. História de usuário (Como usuário do sistema, quero [funcionalidade] para [benefício esperado].)',
+        ' 4. Tipo (Feature / Melhoria / Bug / Enabler)',
+        ' 5. Critérios de aceitação (numerados, objetivos e verificáveis)',
         ' 6. Permissões e Acessos (indicar restrita ou liberada; leitura/criação/edição/exclusão/exportação quando aplicável)',
-        ' 7. Requisitos técnicos (se nenhum, escrever exatamente: Nenhum requisito técnico foi identificado.)',
-        ' 8. Regras de interface',
-        ' 9. Campos e Componentes de UI (tabela Markdown: Campo | Tipo | Obrigatório | Regra/Restrição)',
-        ' 10. Cenários de teste (BDD) com Dado/Quando/Então',
+        ' 7. Regras de negócio',
+        ' 8. Requisitos técnicos (se nenhum, escrever exatamente: Nenhum requisito técnico foi identificado.)',
+        ' 9. Regras de interface',
+        ' 10. Campos e Componentes de UI (tabela Markdown: Campo | Tipo | Obrigatório | Regra/Restrição)',
+        ' 11. Cenários de teste (BDD) com Dado/Quando/Então',
         ' Regras: identificar TODAS as HUs necessárias (telas, fluxos, permissões, relatórios, filtros, buscas, integrações); aplicar INVEST e sugerir divisão quando grande; apontar dependências e ordem quando houver.',
         ' Não mencionar falta de acesso direto aos arquivos. Seja conciso, prático e testável.',
+      ].join('');
+    }
+    if (agentType === 'HU_PREVIEW') {
+      return [
+        ' INSTRUÇÃO (HU – Análise Prévia): Retorne SOMENTE uma lista prévia de Histórias de Usuário identificadas, sem gerar as histórias completas.',
+        ' Para cada HU, inclua exatamente:',
+        ' - Nome provisório da HU ([Funcionalidade] – [Ação principal])',
+        ' - Breve descrição do objetivo da HU (1–2 linhas)',
+        ' Não incluir outras seções, não incluir histórias completas. Apenas a lista prévia para validação.',
       ].join('');
     }
     if (agentType === 'RESUMO') {
       return ' INSTRUÇÃO (Resumo): Retorne somente o resumo final, sem introduções ou justificativas.';
     }
     if (agentType === 'CARDS') {
-      return ' INSTRUÇÃO (Cards): Retorne somente os cards prontos para uso no Business Map.';
+      return [
+        ' INSTRUÇÃO (Cards): A partir da História de Usuário fornecida, retorne SOMENTE um card formatado para Business Map com as três linhas abaixo, sem introduções, explicações ou texto adicional.',
+        ' Formato exato da saída:',
+        ' Nome: [Título da HU ou funcionalidade principal]',
+        ' Tipo: [Backend|Frontend|Layout|Fullstack] (com base na Especificação Técnica da HU)',
+        ' Descrição: [Descrição objetiva da funcionalidade (pode usar o formato da história “Como [usuário], quero [funcionalidade] para [benefício]” ou a descrição técnica da Especificação Técnica)]',
+        ' Seja objetivo e extraia apenas as informações essenciais.',
+      ].join('');
     }
     return '';
   }
@@ -200,6 +218,14 @@ export class ZelloMindService {
    */
   async generateUserStory(content: string): Promise<string> {
     return this.generateContent('HU', content);
+  }
+
+  /**
+   * Gera lista prévia de HUs identificadas para validação
+   * @param content - Conteúdo da transcrição/contexto
+   */
+  async generateUserStoryPreview(content: string): Promise<string> {
+    return this.generateContent('HU_PREVIEW', content);
   }
 
   /**

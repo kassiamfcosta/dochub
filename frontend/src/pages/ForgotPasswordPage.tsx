@@ -31,10 +31,10 @@ const ForgotPasswordPage: React.FC = () => {
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-            <Card className="w-full max-w-md">
+            <Card className="w-full max-w-md bg-white dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100">
                 <CardHeader>
-                    <CardTitle className="text-2xl">Esqueceu a Senha?</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-2xl text-neutral-900 dark:text-neutral-100">Esqueceu a Senha?</CardTitle>
+                    <CardDescription className="text-neutral-600 dark:text-neutral-300">
                         Digite seu e-mail para receber um link de redefinição de senha.
                     </CardDescription>
                 </CardHeader>
@@ -42,7 +42,7 @@ const ForgotPasswordPage: React.FC = () => {
                     <form onSubmit={handleSubmit}>
                         <div className="grid gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="email" className="text-neutral-800 dark:text-neutral-200">Email</Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -58,11 +58,11 @@ const ForgotPasswordPage: React.FC = () => {
                             </Button>
                         </div>
                     </form>
-                    {message && <p className="mt-4 text-sm text-green-600">{message}</p>}
-                    {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-                    <div className="mt-4 text-center text-sm">
+                    {message && <p className="mt-4 text-sm text-green-600 dark:text-green-400">{message}</p>}
+                    {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+                    <div className="mt-4 text-center text-sm text-neutral-700 dark:text-neutral-200">
                         Lembrou da senha?{' '}
-                        <Link to="/login" className="underline">
+                        <Link to="/login" className="underline text-primary-600 dark:text-primary-400">
                             Fazer Login
                         </Link>
                     </div>

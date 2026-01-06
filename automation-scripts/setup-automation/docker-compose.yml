@@ -35,8 +35,8 @@ services:
       DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
       JWT_SECRET: ${JWT_SECRET:-c026586daedcac5ab782076a07abd236}
       JWT_EXPIRES_IN: 7d
-      ZELLO_MIND_API_URL: ${ZELLO_MIND_API_URL}
-      ZELLO_MIND_API_KEY: ${ZELLO_MIND_API_KEY}
+      ZELLO_API_URL: ${ZELLO_API_URL}
+      ZELLO_API_KEY: ${ZELLO_API_KEY}
     ports:
       - "3001:3001"
     depends_on:

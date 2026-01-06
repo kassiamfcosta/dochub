@@ -110,7 +110,7 @@ const CreateTranscriptionModal: FC<CreateTranscriptionModalProps> = ({
       setFiles([]);
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Erro ao criar transcrição');
+      setError(err.message || 'Erro ao criar contexto');
     } finally {
       setLoading(false);
     }
@@ -131,7 +131,7 @@ const CreateTranscriptionModal: FC<CreateTranscriptionModalProps> = ({
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-neutral-200">
-          <h2 className="text-2xl font-bold text-neutral-900">Nova Transcrição</h2>
+          <h2 className="text-2xl font-bold text-neutral-900">Novo Contexto</h2>
           <button
             onClick={onClose}
             className="text-neutral-400 hover:text-neutral-600 transition-colors p-1 rounded-lg hover:bg-neutral-100"
@@ -168,7 +168,7 @@ const CreateTranscriptionModal: FC<CreateTranscriptionModalProps> = ({
               type="text"
               value={description}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
-              placeholder="Breve descrição da transcrição"
+              placeholder="Breve descrição do contexto"
             />
 
             <div className="space-y-3">
@@ -261,7 +261,7 @@ const CreateTranscriptionModal: FC<CreateTranscriptionModalProps> = ({
                 loading={loading}
                 disabled={loading}
               >
-                {loading ? 'Criando...' : 'Criar Transcrição'}
+                {loading ? 'Criando...' : 'Criar Contexto'}
               </Button>
             </div>
           </form>

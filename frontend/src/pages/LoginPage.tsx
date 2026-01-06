@@ -9,7 +9,7 @@ const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, resendVerificationCode } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -21,9 +21,18 @@ const LoginPage: React.FC = () => {
       await login(email, password);
       navigate('/dashboard');
     } catch (err: any) {
-      // Captura a mensagem de erro do backend ou usa mensagem padrão
       const errorMessage = err.response?.data?.message || err.message || 'Erro ao fazer login';
-      setError(errorMessage);
+      if (errorMessage.includes('Email não verificado')) {
+        try {
+          const code = await resendVerificationCode(email);
+          setError('Email não verificado. Reenviamos o código de verificação.');
+          navigate('/verify-email', { state: { email, code } });
+        } catch (resendErr: any) {
+          setError(resendErr.message || 'Erro ao reenviar código');
+        }
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -36,13 +45,13 @@ const LoginPage: React.FC = () => {
         <div className="max-w-md w-full space-y-8 animate-fade-in">
           <div>
             <div className="flex justify-center mb-6">
-              <img src="/logo-quadrada.svg" alt="Zello" className="w-10 h-10" />
+              <img src="/logo-quadrada.svg" alt="Doc Hub" className="w-10 h-10" />
             </div>
             <h2 className="text-center text-3xl font-bold text-neutral-900">
               Bem-vindo de volta
             </h2>
             <p className="mt-2 text-center text-sm text-neutral-600">
-              Faça login para acessar o Zello Transcription Hub
+              Faça login para acessar o Doc Hub
             </p>
           </div>
 
@@ -121,7 +130,7 @@ const LoginPage: React.FC = () => {
       {/* Right Side - Branding */}
       <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-primary-600 to-primary-800 items-center justify-center p-12">
         <div className="max-w-md text-white">
-          <h1 className="text-5xl font-extrabold mb-4">Zello Transcription Hub</h1>
+          <h1 className="text-5xl font-extrabold mb-4">Doc Hub</h1>
           <p className="text-xl text-primary-100 mb-8">
             Transforme suas reuniões em Histórias de Usuário e Resumos com IA
           </p>

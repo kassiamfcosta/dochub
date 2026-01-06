@@ -54,10 +54,10 @@ const TranscriptionPage: React.FC = () => {
           setActiveTab('cards');
         }
       } else {
-        setError('Transcrição não encontrada');
+        setError('Contexto não encontrado');
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar transcrição');
+      setError(err.message || 'Erro ao carregar contexto');
     } finally {
       setLoading(false);
     }
@@ -153,7 +153,7 @@ const TranscriptionPage: React.FC = () => {
     setError('');
 
     if (transcription.files && transcription.files.length > 0 && editedFiles.length === 0) {
-      setError('Pelo menos um arquivo deve permanecer associado a esta transcrição.');
+      setError('Pelo menos um arquivo deve permanecer associado a este contexto.');
       return;
     }
 
@@ -205,7 +205,7 @@ const TranscriptionPage: React.FC = () => {
       <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-neutral-600">Carregando transcrição...</p>
+          <p className="text-neutral-600">Carregando contexto...</p>
         </div>
       </div>
     );
@@ -583,7 +583,7 @@ const TranscriptionPage: React.FC = () => {
                             </ul>
                             {transcription.files && transcription.files.length > 0 && editedFiles.length === 0 && (
                               <p className="mt-2 text-xs text-error">
-                                Pelo menos um arquivo deve permanecer associado a esta transcrição.
+                                Pelo menos um arquivo deve permanecer associado a este contexto.
                               </p>
                             )}
                           </div>
@@ -645,7 +645,7 @@ const TranscriptionPage: React.FC = () => {
                           História de Usuário ainda não gerada
                         </h3>
                         <p className="text-neutral-600 mb-6">
-                          Clique no botão "Gerar HU" na sidebar para criar uma História de Usuário baseada nesta transcrição
+                          Clique no botão "Gerar HU" na sidebar para criar uma História de Usuário baseada neste contexto
                         </p>
                         <Button onClick={handleGenerateHU} loading={generatingHU}>
                           Gerar História de Usuário
@@ -680,7 +680,7 @@ const TranscriptionPage: React.FC = () => {
                           Resumo ainda não gerado
                         </h3>
                         <p className="text-neutral-600 mb-6">
-                          Clique no botão "Gerar Resumo" na sidebar para criar um resumo desta transcrição
+                          Clique no botão "Gerar Resumo" na sidebar para criar um resumo deste contexto
                         </p>
                         <Button onClick={handleGenerateSummary} loading={generatingSummary}>
                           Gerar Resumo
@@ -703,7 +703,7 @@ const TranscriptionPage: React.FC = () => {
                       {transcription.card ? (
                         <ReactMarkdown>{transcription.card.content}</ReactMarkdown>
                       ) : (
-                        <p className="text-neutral-600">Clique em "Gerar Cards" para criar os cards desta transcrição.</p>
+                        <p className="text-neutral-600">Clique em "Gerar Cards" para criar os cards deste contexto.</p>
                       )}
                     </div>
                   </>

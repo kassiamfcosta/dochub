@@ -1,7 +1,7 @@
 {
-  "name": "zello-transcription-hub-backend",
+  "name": "doc-hub-backend",
   "version": "1.0.0",
-  "description": "Backend API para Zello Transcription Hub",
+  "description": "Backend API para Doc Hub",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

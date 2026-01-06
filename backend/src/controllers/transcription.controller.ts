@@ -153,7 +153,7 @@ export class TranscriptionController {
 
     res.status(201).json({
       success: true,
-      message: 'Transcrição criada com sucesso',
+      message: 'Contexto criado com sucesso',
       data: transcription,
     });
   }
@@ -192,7 +192,7 @@ export class TranscriptionController {
       .limit(1);
 
     if (!transcriptionResult.length || !transcriptionResult[0].transcription) {
-      throw new NotFoundError('Transcrição não encontrada');
+      throw new NotFoundError('Contexto não encontrado');
     }
 
     const transcription = transcriptionResult[0].transcription;
@@ -261,11 +261,11 @@ export class TranscriptionController {
       .limit(1);
 
     if (!transcription) {
-      throw new NotFoundError('Transcrição não encontrada');
+      throw new NotFoundError('Contexto não encontrado');
     }
 
     if (transcription.userId !== req.user.userId) {
-      throw new AuthorizationError('Você não tem permissão para editar esta transcrição');
+      throw new AuthorizationError('Você não tem permissão para editar este contexto');
     }
 
     // Atualiza transcrição
@@ -305,7 +305,7 @@ export class TranscriptionController {
 
     res.json({
       success: true,
-      message: 'Transcrição atualizada com sucesso',
+      message: 'Contexto atualizado com sucesso',
       data: updated,
     });
   }
@@ -337,7 +337,7 @@ export class TranscriptionController {
     }
 
     if (transcription.userId !== req.user.userId) {
-      throw new AuthorizationError('Você não tem permissão para deletar esta transcrição');
+      throw new AuthorizationError('Você não tem permissão para deletar este contexto');
     }
 
     // Arquiva transcrição em vez de deletar definitivamente
@@ -348,7 +348,7 @@ export class TranscriptionController {
 
     res.json({
       success: true,
-      message: 'Transcrição arquivada com sucesso',
+      message: 'Contexto arquivado com sucesso',
     });
   }
 }

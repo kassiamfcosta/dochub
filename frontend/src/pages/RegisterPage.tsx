@@ -11,7 +11,7 @@ const RegisterPage: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [verificationCode, setVerificationCode] = useState<string | undefined>();
-  const { register } = useAuth();
+  const { register, resendVerificationCode } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,9 +32,18 @@ const RegisterPage: React.FC = () => {
         navigate('/verify-email', { state: { email } });
       }
     } catch (err: any) {
-      // Captura a mensagem de erro do backend ou usa mensagem padrão
       const errorMessage = err.response?.data?.message || err.message || 'Erro ao registrar';
-      setError(errorMessage);
+      if (errorMessage.includes('Email já cadastrado')) {
+        try {
+          const code = await resendVerificationCode(email);
+          setError('Email já cadastrado. Reenviamos o código de verificação.');
+          navigate('/verify-email', { state: { email, code } });
+        } catch (resendErr: any) {
+          setError(resendErr.message || 'Erro ao reenviar código');
+        }
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -57,7 +66,7 @@ const RegisterPage: React.FC = () => {
               Criar conta
             </h2>
             <p className="mt-2 text-center text-sm text-neutral-600">
-              Registre-se no Zello Transcription Hub
+              Registre-se no Doc Hub
             </p>
           </div>
 
@@ -180,7 +189,7 @@ const RegisterPage: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-semibold mb-1">Rápido e Eficiente</h3>
-                <p className="text-primary-100">Gere conteúdo em segundos</p>
+                <p className="text-primary-100">Gere contextos em segundos</p>
               </div>
             </div>
             <div className="flex items-start gap-3">

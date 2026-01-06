@@ -40,7 +40,7 @@ const AdminPage: React.FC = () => {
             <p className="text-3xl font-bold">{stats.totalUsers}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-semibold">Total de Transcrições</h2>
+            <h2 className="text-xl font-semibold">Total de Contextos</h2>
             <p className="text-3xl font-bold">{stats.totalTranscriptions}</p>
           </div>
         </div>

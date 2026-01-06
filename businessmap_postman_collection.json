@@ -1,0 +1,252 @@
+{
+	"info": {
+		"_postman_id": "c9b7d1f3-e5e6-4c5g-0h2i-4d3c2b1a9b8c",
+		"name": "Businessmap Integration (Used in Project)",
+		"description": "Collection containing ONLY the Businessmap API calls actually used in the Intranet Backend project (BusinessmapService).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Cache Warmup",
+			"item": [
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users?per_page=100&fields=user_id,email,realname,username",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users"
+							],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "100",
+									"description": "Used in getAllUsers loop"
+								},
+								{
+									"key": "fields",
+									"value": "user_id,email,realname,username",
+									"description": "Specific fields requested by service"
+								}
+							]
+						},
+						"description": "Used in `getAllUsers` to cache user mapping (ID <-> Email)."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Board Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/boards/:board_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"boards",
+								":board_id"
+							],
+							"variable": [
+								{
+									"key": "board_id",
+									"value": "{{board_id}}"
+								}
+							]
+						},
+						"description": "Used in `cacheBoardData` to get board name."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Board Workflows",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/boards/:board_id/workflows",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"boards",
+								":board_id",
+								"workflows"
+							],
+							"variable": [
+								{
+									"key": "board_id",
+									"value": "{{board_id}}"
+								}
+							]
+						},
+						"description": "Used in `cacheBoardData` to find the 'Atividades' workflow ID."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Board Columns",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/boards/:board_id/columns",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"boards",
+								":board_id",
+								"columns"
+							],
+							"variable": [
+								{
+									"key": "board_id",
+									"value": "{{board_id}}"
+								}
+							]
+						},
+						"description": "Used in `cacheColumns` to map Column ID to Name."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Board Lanes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/boards/:board_id/lanes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"boards",
+								":board_id",
+								"lanes"
+							],
+							"variable": [
+								{
+									"key": "board_id",
+									"value": "{{board_id}}"
+								}
+							]
+						},
+						"description": "Used in `cacheBoardData` to map Lane ID to Name."
+					},
+					"response": []
+				}
+			],
+			"description": "Calls made during module initialization or cache refresh."
+		},
+		{
+			"name": "Tasks & Enrichment",
+			"item": [
+				{
+					"name": "Get Active Tasks (Board)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/cards?board_ids={{board_id}}&is_archived=0&per_page=100&fields=card_id,board_id,workflow_id,title,description,type_id,color,column_id,lane_id,owner_user_id,size,priority,deadline,created_at,last_modified",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"cards"
+							],
+							"query": [
+								{
+									"key": "board_ids",
+									"value": "{{board_id}}"
+								},
+								{
+									"key": "is_archived",
+									"value": "0",
+									"description": "Only active tasks"
+								},
+								{
+									"key": "per_page",
+									"value": "100"
+								},
+								{
+									"key": "fields",
+									"value": "card_id,board_id,workflow_id,title,description,type_id,color,column_id,lane_id,owner_user_id,size,priority,deadline,created_at,last_modified",
+									"description": "Optimized field list used in `getAllActiveTasks`"
+								}
+							]
+						},
+						"description": "Used in `getAllActiveTasks` to fetch all active cards for caching. Iterates pages if needed."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Card Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/cards/:card_id",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"cards",
+								":card_id"
+							],
+							"variable": [
+								{
+									"key": "card_id",
+									"value": "12345",
+									"description": "Replace with actual Card ID"
+								}
+							]
+						},
+						"description": "Used in `enrichTasksCache` and `mapTask` to fetch details like `co_owner_ids`."
+					},
+					"response": []
+				}
+			],
+			"description": "Calls related to fetching and enriching task data."
+		}
+	],
+	"auth": {
+		"type": "apikey",
+		"apikey": [
+			{
+				"key": "value",
+				"value": "{{apiKey}}",
+				"type": "string"
+			},
+			{
+				"key": "key",
+				"value": "apikey",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://zello.businessmap.io/api/v2",
+			"type": "string"
+		},
+		{
+			"key": "apiKey",
+			"value": "YOUR_API_KEY_HERE",
+			"type": "string"
+		},
+		{
+			"key": "board_id",
+			"value": "41",
+			"type": "string",
+			"description": "Default: 41 (ProgressoGov) or 64 (Extrata)"
+		}
+	]
+}

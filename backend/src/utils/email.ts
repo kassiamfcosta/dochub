@@ -66,6 +66,9 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
         console.log(`Email enviado para ${options.to}`);
     } catch (error) {
         console.error('Erro ao enviar email:', error);
+        if (env.NODE_ENV === 'development') {
+            return;
+        }
         throw new Error('Falha ao enviar email');
     }
 }

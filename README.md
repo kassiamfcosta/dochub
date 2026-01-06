@@ -1,6 +1,6 @@
-# Zello Transcription Hub
+# Doc Hub
 
-Sistema web full-stack para gerenciar transcrições de reuniões com geração automática de Histórias de Usuário e Resumos utilizando a API Zello Mind.
+Sistema web full-stack para gerenciar transcrições de reuniões com geração automática de Histórias de Usuário e Resumos utilizando a API Zello Mind. Inclui exportação de HU/Resumo/Card em MD, DOC, PDF e TXT e contadores agregados no Dashboard.
 
 ## Estrutura do Projeto
 
@@ -62,6 +62,12 @@ projeto/
 ### Banco de Dados
 - MySQL 8
 
+## Funcionalidades
+
+- Exportar HU, Resumo e Card em MD, DOC, PDF e TXT pela interface de Transcrição
+- Dashboard com contagem agregada de HU, Resumos e Cards (via backend)
+- Pré-análise de HUs (lista para validação) via endpoint da API
+
 ## Instalação
 
 ### Backend
@@ -92,6 +98,12 @@ Consulte a pasta `docs/` para documentação detalhada:
 - `SETUP.md` - Guia completo de instalação e deploy
 - `API.md` - Documentação da API REST
 - `AGENTES.md` - Configuração dos agentes Zello Mind
+
+## Uso
+
+- Exportar HU/Resumo/Card: na página de Contexto, utilize os botões de salvar e escolha o formato (MD, DOC, PDF, TXT).
+- Contadores no Dashboard: reinicie o backend após atualizações e recarregue o frontend para refletir os números agregados de HU e Resumos.
+- Pré-análise de HUs: faça POST em /api/transcriptions/:id/preview-user-stories para obter lista prévia (nome e breve descrição) e validar antes de gerar as HUs completas.
 
 ## Desenvolvimento
 
