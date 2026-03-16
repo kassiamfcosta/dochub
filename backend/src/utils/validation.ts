@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import env from '../config/env';
 
 /**
- * Validação de email do domínio @zello.tec.br
+ * Validação de email do domínio configurado
  */
 export const emailSchema = z.string().email('Email inválido').refine(
-  (email) => email.endsWith('@zello.tec.br'),
-  { message: 'Email deve ser do domínio @zello.tec.br' }
+  (email) => email.endsWith(`@${env.ALLOWED_EMAIL_DOMAIN}`),
+  { message: `Email deve ser do domínio @${env.ALLOWED_EMAIL_DOMAIN}` }
 );
 
 /**

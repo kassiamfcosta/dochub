@@ -6,7 +6,10 @@ import env from './config/env';
 import authRoutes from './routes/auth.routes';
 import transcriptionRoutes from './routes/transcription.routes';
 import fileRoutes from './routes/file.routes';
+import audioRoutes from './routes/audio.routes';
 import adminRoutes from './routes/admin.routes';
+import utilsRoutes from './routes/utils.routes';
+import notesRoutes from './routes/notes.routes';
 
 import { errorHandler } from './middlewares/error-handler';
 
@@ -17,7 +20,7 @@ const PORT = parseInt(env.PORT, 10);
 
 // Middlewares
 app.use(cors({
-  origin: env.FRONTEND_URL,
+  origin: env.NODE_ENV === 'development' ? true : env.FRONTEND_URL,
   credentials: true,
 }));
 app.use(cookieParser());
@@ -51,7 +54,10 @@ app.get('/api', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/transcriptions', transcriptionRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/audio', audioRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/utils', utilsRoutes);
+app.use('/api', notesRoutes);
 
 // Error handler global (deve ser o último middleware)
 app.use(errorHandler);

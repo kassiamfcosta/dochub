@@ -10,6 +10,14 @@ Os agentes são **pré-configurados no servidor** da API. A aplicação apenas e
 
 ## Agentes Disponíveis
 
+### 0. Levantamento de Requisitos (UI)
+
+- A seleção de “Modelo de geração” agora está disponível exclusivamente na aba “Levantamento”.
+- Nesta aba, há apenas duas opções:
+  - Parte 1: Contexto, Escopo, Módulos, Dependências Macro, Integrações
+  - Parte 2: RFs por módulo, Matriz de Dependências, Priorização, Backlog
+- As outras abas (HU, Resumo, Cards) possuem botões próprios de geração e não utilizam o “Modelo de geração”.
+
 ### 1. Gerador de Histórias de Usuário
 
 **ID:** `692704d81c546166c00f0188`

@@ -6,6 +6,7 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 const api: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
   withCredentials: true,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -17,6 +18,12 @@ const api: AxiosInstance = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ success: boolean; message?: string }>) => {
+    if (error.code === 'ECONNABORTED') {
+      const customError = new Error('Transcrição demorou mais que o esperado. Tente novamente com áudio menor.');
+      (customError as any).status = error.response?.status;
+      return Promise.reject(customError);
+    }
+
     // Se a resposta tem uma mensagem do backend, usa ela
     if (error.response?.data?.message) {
       const customError = new Error(error.response.data.message);

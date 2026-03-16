@@ -76,21 +76,12 @@ export class AuthController {
     const emailService = EmailServiceFactory.create();
     const emailResult = await emailService.sendVerificationCode(email, code);
 
-    // Em desenvolvimento, inclui o código na resposta para facilitar testes
     const response: any = {
       success: true,
       message: 'Usuário registrado. Verifique seu email para o código de confirmação.',
       emailSent: emailResult.success,
       emailMessage: emailResult.message,
     };
-
-    if (env.NODE_ENV === 'development') {
-      response.verificationCode = code;
-      response.debug = {
-        message: 'Em desenvolvimento, o código também aparece nos logs do backend',
-        expiresAt: expiresAt.toISOString(),
-      };
-    }
 
     res.status(201).json(response);
   }
@@ -139,21 +130,12 @@ export class AuthController {
     const emailService = EmailServiceFactory.create();
     const emailResult = await emailService.sendVerificationCode(email, code);
 
-    // Em desenvolvimento, inclui o código na resposta
     const response: any = {
       success: true,
       message: 'Código de verificação reenviado. Verifique seu email.',
       emailSent: emailResult.success,
       emailMessage: emailResult.message,
     };
-
-    if (env.NODE_ENV === 'development') {
-      response.verificationCode = code;
-      response.debug = {
-        message: 'Em desenvolvimento, o código também aparece nos logs do backend',
-        expiresAt: expiresAt.toISOString(),
-      };
-    }
 
     res.json(response);
   }

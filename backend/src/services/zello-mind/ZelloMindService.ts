@@ -2,11 +2,14 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 import env from '../../config/env';
 import { AppError } from '../../utils/errors';
 import { sanitizeTextForJson } from '../../utils/text-sanitizer';
+import { ZelloMindModelService } from './ZelloMindModelService';
+import { OpenRouterGeminiService } from '../llm/OpenRouterGeminiService';
+type Mode = 'pipeline' | 'model' | 'gemini';
 
 /**
  * Tipos de agentes disponíveis
  */
-export type AgentType = 'HU' | 'HU_PREVIEW' | 'RESUMO' | 'CARDS';
+export type AgentType = 'HU' | 'HU_PREVIEW' | 'RESUMO' | 'CARDS' | 'HU_PIPELINE_PART1' | 'HU_PIPELINE_PART2' | 'REQ_PART1' | 'REQ_PART2';
 
 /**
  * Interface para resposta da API de Execução de Agente
@@ -35,6 +38,10 @@ const AGENT_IDS: Record<AgentType, () => string> = {
   HU_PREVIEW: () => env.AGENT_HU_ID,
   RESUMO: () => env.AGENT_RESUMO_ID,
   CARDS: () => env.AGENT_CARDS_ID,
+  HU_PIPELINE_PART1: () => env.AGENT_HU_ID,
+  HU_PIPELINE_PART2: () => env.AGENT_HU_CORE_ID,
+  REQ_PART1: () => env.AGENT_REQ_PART1_ID,
+  REQ_PART2: () => env.AGENT_REQ_PART2_ID,
 };
 
 /**
@@ -43,6 +50,8 @@ const AGENT_IDS: Record<AgentType, () => string> = {
  */
 export class ZelloMindService {
   private client: AxiosInstance;
+  private modelService: ZelloMindModelService;
+  private geminiService: OpenRouterGeminiService;
   private readonly maxRetries = 2;
   private readonly timeout = 120000; // 120 segundos (agentes podem demorar)
 
@@ -55,6 +64,8 @@ export class ZelloMindService {
         'zello_mind_key': env.ZELLO_API_KEY,
       },
     });
+    this.modelService = new ZelloMindModelService();
+    this.geminiService = new OpenRouterGeminiService();
   }
 
   /**
@@ -100,7 +111,8 @@ export class ZelloMindService {
         ' Para cada HU, inclua exatamente:',
         ' - Nome provisório da HU ([Funcionalidade] – [Ação principal])',
         ' - Breve descrição do objetivo da HU (1–2 linhas)',
-        ' Não incluir outras seções, não incluir histórias completas. Apenas a lista prévia para validação.',
+        ' Ao final, inclua uma única linha solicitando validação do usuário.',
+        ' Não incluir outras seções, não incluir histórias completas.',
       ].join('');
     }
     if (agentType === 'RESUMO') {
@@ -114,6 +126,60 @@ export class ZelloMindService {
         ' Tipo: [Backend|Frontend|Layout|Fullstack] (com base na Especificação Técnica da HU)',
         ' Descrição: [Descrição objetiva da funcionalidade (pode usar o formato da história “Como [usuário], quero [funcionalidade] para [benefício]” ou a descrição técnica da Especificação Técnica)]',
         ' Seja objetivo e extraia apenas as informações essenciais.',
+      ].join('');
+    }
+    if (agentType === 'HU_PIPELINE_PART1') {
+      return [
+        ' INSTRUÇÃO (HU – Parte 1): Retorne SOMENTE as seções 1 a 5 na ordem oficial: Nome da História, História de Usuário, Tipo, Critérios de Aceitação, Regras de Negócio.',
+      ].join('');
+    }
+    if (agentType === 'HU_PIPELINE_PART2') {
+      return [
+        ' INSTRUÇÃO (HU – Parte 2): Retorne SOMENTE as seções 6 a 11 na ordem oficial: Permissões e Acessos, Requisitos Técnicos (se nenhum, escreva exatamente: Nenhum requisito técnico foi identificado.), Regras de Interface, Campos e Componentes de UI (tabela Markdown Campo | Tipo | Obrigatório | Regra/Restrição), Cenários de Teste BDD (Dado/Quando/Então).',
+      ].join('');
+    }
+    if (agentType === 'REQ_PART1') {
+      return [
+        ' INSTRUÇÃO (Levantamento de Requisitos – Parte 1): Retorne SOMENTE Contexto, Escopo, Módulos, Dependências Macro e Integrações, no formato abaixo.',
+        ' Leia TODO o contexto documental, anexos (PDF/DOC/TXT) e transcrições vinculadas.',
+        ' Se houver informações conflitantes entre fontes para o MESMO tópico, NÃO escolha sozinho: gere bloco de conflito no formato obrigatório.',
+        ' Formato Parte 1:',
+        ' ## Contexto',
+        ' ## Escopo',
+        ' ## Módulos',
+        ' ## Dependências Macro',
+        ' ## Integrações',
+        ' Regras de Conflito (Formato obrigatório):',
+        ' >>>>>>> CONFLITO IDENTIFICADO: [Tópico]',
+        ' [VERSÃO A] (Fonte: [Arquivo A])',
+        ' - Conteúdo:',
+        ' [VERSÃO B] (Fonte: [Arquivo B])',
+        ' - Conteúdo:',
+        ' Ação requerida: Usuário deve escolher A ou B (ou sugerir nova versão C).',
+        ' <<<<<<< FIM DO CONFLITO',
+        ' Mantenha rastreabilidade indicando a fonte quando possível.',
+      ].join('');
+    }
+    if (agentType === 'REQ_PART2') {
+      return [
+        ' INSTRUÇÃO (Levantamento de Requisitos – Parte 2): Retorne SOMENTE Requisitos Funcionais completos por módulo, Matriz de Dependências, Priorização e Backlog, usando COMO ENTRADA também o texto da Parte 1.',
+        ' Leia TODO o contexto documental, anexos e transcrições vinculadas automaticamente.',
+        ' Se houver informações conflitantes entre fontes para o MESMO tópico, NÃO escolha sozinho: gere bloco de conflito no formato obrigatório.',
+        ' Formato Parte 2:',
+        ' ## Requisitos Funcionais por Módulo',
+        ' - Para cada módulo: RFs, regras, critérios de aceite, rastreabilidade da fonte.',
+        ' ## Matriz de Dependências',
+        ' ## Priorização',
+        ' ## Backlog (épicos/features com ordem sugerida)',
+        ' Regras de Conflito (Formato obrigatório):',
+        ' >>>>>>> CONFLITO IDENTIFICADO: [Tópico]',
+        ' [VERSÃO A] (Fonte: [Arquivo A])',
+        ' - Conteúdo:',
+        ' [VERSÃO B] (Fonte: [Arquivo B])',
+        ' - Conteúdo:',
+        ' Ação requerida: Usuário deve escolher A ou B (ou sugerir nova versão C).',
+        ' <<<<<<< FIM DO CONFLITO',
+        ' Mantenha rastreabilidade indicando a fonte quando possível.',
       ].join('');
     }
     return '';
@@ -212,11 +278,32 @@ export class ZelloMindService {
     throw new AppError(500, 'Erro desconhecido ao gerar conteúdo');
   }
 
+  private async exec(agentType: AgentType, ctx: string): Promise<string> {
+    return this.generateContent(agentType, ctx);
+  }
+
+  async generateUserStoryPipeline(content: string): Promise<string> {
+    const part1Out = await this.exec('HU_PIPELINE_PART1', content);
+    const ctxWithPart1 = `${content}\n\nParte 1:\n${part1Out}`;
+    const part2Out = await this.exec('HU_PIPELINE_PART2', ctxWithPart1);
+    return [part1Out.trim(), part2Out.trim()].filter(Boolean).join('\n\n');
+  }
+
   /**
    * Gera História de Usuário
    * @param content - Conteúdo da transcrição/contexto
    */
-  async generateUserStory(content: string): Promise<string> {
+  async generateUserStory(content: string, mode?: Mode): Promise<string> {
+    const m: Mode = (mode as Mode) || (env.MODO_ZELLO_MIND as Mode) || 'pipeline';
+    if (m === 'gemini') {
+      return this.geminiService.generateUserStoryDirect(content);
+    }
+    if (m === 'model') {
+      return this.modelService.generateUserStoryDirect(content);
+    }
+    if (m === 'pipeline') {
+      return this.generateUserStoryPipeline(content);
+    }
     return this.generateContent('HU', content);
   }
 
@@ -224,7 +311,12 @@ export class ZelloMindService {
    * Gera lista prévia de HUs identificadas para validação
    * @param content - Conteúdo da transcrição/contexto
    */
-  async generateUserStoryPreview(content: string): Promise<string> {
+  async generateUserStoryPreview(content: string, mode?: Mode): Promise<string> {
+    const m: Mode = (mode as Mode) || (env.MODO_ZELLO_MIND as Mode) || 'pipeline';
+    if (m === 'gemini') {
+      const d = this.getDirective('HU_PREVIEW');
+      return this.geminiService.generateByDirective(content, d);
+    }
     return this.generateContent('HU_PREVIEW', content);
   }
 
@@ -232,7 +324,12 @@ export class ZelloMindService {
    * Gera Resumo
    * @param content - Conteúdo da transcrição/contexto
    */
-  async generateSummary(content: string): Promise<string> {
+  async generateSummary(content: string, mode?: Mode): Promise<string> {
+    const m: Mode = (mode as Mode) || (env.MODO_ZELLO_MIND as Mode) || 'pipeline';
+    if (m === 'gemini') {
+      const d = this.getDirective('RESUMO');
+      return this.geminiService.generateByDirective(content, d);
+    }
     return this.generateContent('RESUMO', content);
   }
 
@@ -240,7 +337,38 @@ export class ZelloMindService {
    * Gera Cards para Business Map
    * @param content - Conteúdo da HU para extrair cards
    */
-  async generateCards(content: string): Promise<string> {
+  async generateCards(content: string, mode?: Mode): Promise<string> {
+    const m: Mode = (mode as Mode) || (env.MODO_ZELLO_MIND as Mode) || 'pipeline';
+    if (m === 'gemini') {
+      const d = this.getDirective('CARDS');
+      return this.geminiService.generateByDirective(content, d);
+    }
     return this.generateContent('CARDS', content);
+  }
+
+  async generateRequirementsPart1(content: string, mode?: Mode): Promise<string> {
+    const m: Mode = (mode as Mode) || (env.MODO_ZELLO_MIND as Mode) || 'pipeline';
+    if (m === 'gemini') {
+      const d = this.getDirective('REQ_PART1');
+      return this.geminiService.generateByDirective(content, d);
+    }
+    return this.generateContent('REQ_PART1', content);
+  }
+
+  async generateRequirementsPart2(content: string, part1Text: string, mode?: Mode): Promise<string> {
+    const m: Mode = (mode as Mode) || (env.MODO_ZELLO_MIND as Mode) || 'pipeline';
+    const ctx = [content, '---', 'PARTE 1 (entrada):', part1Text || ''].filter(Boolean).join('\n');
+    if (m === 'gemini') {
+      const d = this.getDirective('REQ_PART2');
+      return this.geminiService.generateByDirective(ctx, d);
+    }
+    return this.generateContent('REQ_PART2', ctx);
+  }
+
+  /**
+   * Sugere quantidade e títulos de HUs para a aba de planejamento (usa Gemini, retorno estruturado).
+   */
+  async suggestPlanningHUs(context: string): Promise<{ qtdSugerida: number; titulos: string[] }> {
+    return this.geminiService.suggestPlanningHUs(context);
   }
 }

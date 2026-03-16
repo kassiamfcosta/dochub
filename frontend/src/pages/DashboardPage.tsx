@@ -7,6 +7,7 @@ import Card from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useToast } from '../hooks/useToast';
+import { isFavorite, toggleFavorite, sortByFavoritesFirst } from '../utils/favorites';
 
 const DashboardPage: React.FC = () => {
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
@@ -32,7 +33,11 @@ const DashboardPage: React.FC = () => {
       setLoading(true);
       const response = await transcriptionService.list(search || undefined);
       if (response.success && response.data) {
-        setTranscriptions(response.data);
+        const list = response.data;
+        const sorted = user
+          ? sortByFavoritesFirst(list, (t) => isFavorite(user.id, 'transcription', t.id))
+          : list;
+        setTranscriptions(sorted);
         const computedHU = response.data.filter(t => t.hasUserStory || !!t.userStory).length;
         const computedSummary = response.data.filter(t => t.hasSummary || !!t.summary).length;
         setHuCount(response.huCount ?? computedHU);
@@ -310,22 +315,43 @@ const DashboardPage: React.FC = () => {
                         </p>
                       )}
                     </div>
-                    {transcription.isOwner && (
+                    <div className="flex items-center gap-2 ml-3">
                       <button
                         type="button"
-                        className="ml-3 text-neutral-400 hover:text-error transition-colors"
+                        className={`text-neutral-400 hover:text-primary-600 transition-colors ${user ? '' : 'cursor-not-allowed'}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setTranscriptionToArchive(transcription);
-                          setError('');
+                          if (!user) return;
+                          toggleFavorite(user.id, 'transcription', transcription.id);
+                          setTranscriptions((prev) =>
+                            sortByFavoritesFirst([...prev], (t) => isFavorite(user.id, 'transcription', t.id))
+                          );
                         }}
-                        aria-label="Arquivar contexto"
+                        aria-label="Favoritar contexto"
+                        title="Favoritar contexto"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-7 0V5a2 2 0 012-2h3.5a2 2 0 012 2v2" />
+                        <svg className={`w-5 h-5 ${user && isFavorite(user.id, 'transcription', transcription.id) ? 'text-primary-600' : ''}`} viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 6 4 4 6.5 4c1.74 0 3.41.81 4.5 2.09C12.09 4.81 13.76 4 15.5 4 18 4 20 6 20 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                         </svg>
                       </button>
-                    )}
+                      {transcription.isOwner && (
+                        <button
+                          type="button"
+                          className="text-neutral-400 hover:text-error transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTranscriptionToArchive(transcription);
+                            setError('');
+                          }}
+                          aria-label="Arquivar contexto"
+                          title="Arquivar contexto"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-7 0V5a2 2 0 012-2h3.5a2 2 0 012 2v2" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex items-center justify-between pt-4 border-t border-neutral-200">

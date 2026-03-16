@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../config/db';
-import { transcriptions, userStories, summaries, cards, sharedTranscriptions, transcriptionFiles } from '../config/db/schema';
+import { transcriptions, userStories, summaries, cards, sharedTranscriptions, transcriptionFiles, requirements } from '../config/db/schema';
 import { eq, and, or, desc, like, inArray } from 'drizzle-orm';
 import { NotFoundError, AuthorizationError } from '../utils/errors';
 
@@ -197,7 +197,7 @@ export class TranscriptionController {
 
     const transcription = transcriptionResult[0].transcription;
 
-    // Busca HU, Resumo e Cards se existirem
+    // Busca HU, Resumo, Cards e Levantamento se existirem
     const [userStory] = await db
       .select()
       .from(userStories)
@@ -215,6 +215,11 @@ export class TranscriptionController {
       .from(cards)
       .where(eq(cards.transcriptionId, parseInt(id, 10)))
       .limit(1);
+    const [reqDoc] = await db
+      .select()
+      .from(requirements)
+      .where(eq(requirements.transcriptionId, parseInt(id, 10)))
+      .limit(1);
 
     const files = await db
       .select()
@@ -231,6 +236,7 @@ export class TranscriptionController {
         userStory: userStory || null,
         summary: summary || null,
         card: card || null,
+        requirements: reqDoc || null,
         files,
         isOwner,
       },

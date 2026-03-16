@@ -7145,7 +7145,7 @@ Pode substituir
 no .env e onde for necessário as informações do zello mind? 
 
 ZELLO_API_KEY=LYIB_WidIVeADAXylsTDcx-6oaWoq5CfPL9W_-bZ5Ag=
-ZELLO_BASE_URL=https://smartdocs-api-hlg.zello.space
+ZELLO_API_URL=https://smartdocs-api-hlg.zello.space
 
 
 ---
@@ -7182,7 +7182,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
 
   // Zello API
-  ZELLO_BASE_URL: z.string().url('ZELLO_BASE_URL deve ser uma URL válida'),
+  ZELLO_API_URL: z.string().url('ZELLO_API_URL deve ser uma URL válida'),
   ZELLO_API_KEY: z.string().min(1, 'ZELLO_API_KEY é obrigatória'),
 
   // Email (opcional)
@@ -7253,7 +7253,7 @@ export class ZelloMindService {
 
   constructor() {
     this.client = axios.create({
-      baseURL: env.ZELLO_BASE_URL,
+      baseURL: env.ZELLO_API_URL,
       timeout: this.timeout,
       headers: {
         'Authorization': `Bearer ${env.ZELLO_API_KEY}`,
@@ -7461,7 +7461,7 @@ Resumo simples e direto com 5 seções básicas, usando linguagem clara e objeti
 
 ### Endpoint
 
-Configurável via variável de ambiente `ZELLO_BASE_URL`
+Configurável via variável de ambiente `ZELLO_API_URL`
 
 ### Autenticação
 
@@ -7584,7 +7584,7 @@ JWT_SECRET=seu_secret_super_seguro_aqui_altere_em_producao
 JWT_EXPIRES_IN=7d
 
 # Zello API
-ZELLO_BASE_URL=https://smartdocs-api-hlg.zello.space
+ZELLO_API_URL=https://smartdocs-api-hlg.zello.space
 ZELLO_API_KEY=sua_chave_api_aqui
 ```
 
@@ -7943,7 +7943,7 @@ JWT_SECRET=seu_secret_super_seguro_aqui_altere_em_producao
 JWT_EXPIRES_IN=7d
 
 # Zello API
-ZELLO_BASE_URL=https://smartdocs-api-hlg.zello.space
+ZELLO_API_URL=https://smartdocs-api-hlg.zello.space
 ZELLO_API_KEY=sua_chave_api_aqui
 ```
 
@@ -8125,7 +8125,7 @@ sudo certbot --nginx -d seu-dominio.com
 | `DATABASE_URL` | URL de conexão MySQL | Sim | - |
 | `JWT_SECRET` | Secret para assinatura JWT | Sim | - |
 | `JWT_EXPIRES_IN` | Validade do token JWT | Não | 7d |
-| `ZELLO_BASE_URL` | URL base da API Zello | Sim | - |
+| `ZELLO_API_URL` | URL base da API Zello | Sim | - |
 | `ZELLO_API_KEY` | Chave da API Zello | Sim | - |
 | `SMTP_HOST` | Host SMTP (opcional) | Não | - |
 | `SMTP_PORT` | Porta SMTP (opcional) | Não | - |
@@ -8302,7 +8302,7 @@ JWT_SECRET=seu_secret_super_seguro_aqui_altere_em_producao
 JWT_EXPIRES_IN=7d
 
 # Zello API
-ZELLO_BASE_URL=https://smartdocs-api-hlg.zello.space
+ZELLO_API_URL=https://smartdocs-api-hlg.zello.space
 ZELLO_API_KEY=sua_chave_api_aqui
 ```
 
@@ -8484,7 +8484,7 @@ sudo certbot --nginx -d seu-dominio.com
 | `DATABASE_URL` | URL de conexão MySQL | Sim | - |
 | `JWT_SECRET` | Secret para assinatura JWT | Sim | - |
 | `JWT_EXPIRES_IN` | Validade do token JWT | Não | 7d |
-| `ZELLO_BASE_URL` | URL base da API Zello | Sim | - |
+| `ZELLO_API_URL` | URL base da API Zello | Sim | - |
 | `ZELLO_API_KEY` | Chave da API Zello | Sim | - |
 | `SMTP_HOST` | Host SMTP (opcional) | Não | - |
 | `SMTP_PORT` | Porta SMTP (opcional) | Não | - |
@@ -8522,7 +8522,7 @@ Certifique-se de que a variável `FRONTEND_URL` no backend está configurada cor
 ### Erro ao Gerar HU/Resumo
 
 1. Verifique se `ZELLO_API_KEY` está configurada
-2. Verifique se `ZELLO_BASE_URL` está correta
+2. Verifique se `ZELLO_API_URL` está correta
 3. Verifique os logs do backend para mais detalhes
 
 ### Erro de Autenticação
@@ -8652,7 +8652,7 @@ services:
       DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
       JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
       JWT_EXPIRES_IN: 7d
-      ZELLO_BASE_URL: ${ZELLO_BASE_URL:-https://smartdocs-api-hlg.zello.space}
+      ZELLO_API_URL: ${ZELLO_API_URL:-https://smartdocs-api-hlg.zello.space}
       ZELLO_API_KEY: ${ZELLO_API_KEY}
     ports:
       - "3001:3001"
@@ -8742,7 +8742,7 @@ export class ZelloMindService {
 
   constructor() {
     this.client = axios.create({
-      baseURL: env.ZELLO_BASE_URL,
+      baseURL: env.ZELLO_API_URL,
       timeout: this.timeout,
       headers: {
         'Authorization': `Bearer ${env.ZELLO_API_KEY}`,
@@ -8832,11 +8832,11 @@ Resumo das alterações:
 ### 1. Variáveis de ambiente atualizadas
 
 **Arquivo: `backend/src/config/env.ts`**
-- `ZELLO_MIND_API_URL` → `ZELLO_BASE_URL`
+- `ZELLO_MIND_API_URL` → `ZELLO_API_URL`
 - `ZELLO_MIND_API_KEY` → `ZELLO_API_KEY`
 
 **Arquivo: `backend/src/services/zello-mind/ZelloMindService.ts`**
-- Atualizado para usar `env.ZELLO_BASE_URL` e `env.ZELLO_API_KEY`
+- Atualizado para usar `env.ZELLO_API_URL` e `env.ZELLO_API_KEY`
 - Adicionado comentário sobre possível ajuste do endpoint
 
 ### 2. Documentação atualizada
@@ -8851,13 +8851,13 @@ Resumo das alterações:
 As novas variáveis devem ser configuradas no `.env`:
 
 ```env
-ZELLO_BASE_URL=https://smartdocs-api-hlg.zello.space
+ZELLO_API_URL=https://smartdocs-api-hlg.zello.space
 ZELLO_API_KEY=LYIB_WidIVeADAXylsTDcx-6oaWoq5CfPL9W_-bZ5Ag=
 ```
 
 ### Observação importante
 
-O código atual faz POST para a raiz da `ZELLO_BASE_URL` (string vazia `''`). Se a API Zello precisar de um endpoint específico (ex: `/v1/chat` ou `/api/chat`), ajuste a linha 79 do arquivo `backend/src/services/zello-mind/ZelloMindService.ts`:
+O código atual faz POST para a raiz da `ZELLO_API_URL` (string vazia `''`). Se a API Zello precisar de um endpoint específico (ex: `/v1/chat` ou `/api/chat`), ajuste a linha 79 do arquivo `backend/src/services/zello-mind/ZelloMindService.ts`:
 
 ```typescript
 // Se precisar de endpoint específico, altere de '' para '/v1/chat' por exemplo
@@ -8867,7 +8867,7 @@ const response = await this.client.post<ZelloMindResponse>('/v1/chat', request);
 Todas as referências às variáveis antigas foram atualizadas. O sistema está pronto para usar as novas credenciais da API Zello.
 
 ```plaintext
-ZELLO_BASE_URL=https://smartdocs-api-hlg.zello.space
+ZELLO_API_URL=https://smartdocs-api-hlg.zello.space
 ZELLO_API_KEY=LYIB_WidIVeADAXylsTDcx-6oaWoq5CfPL9W_-bZ5Ag=
 ```
 
@@ -8954,7 +8954,7 @@ JWT_SECRET=,8n=RP#O0/O9I'Hg:~.]7a,"ZfS^v8
 JWT_EXPIRES_IN=7d
 
 # Zello API
-ZELLO_BASE_URL=https://smartdocs-api-hlg.zello.space
+ZELLO_API_URL=https://smartdocs-api-hlg.zello.space
 ZELLO_API_KEY=sua_chave_api_aqui
 ```
 
@@ -9136,7 +9136,7 @@ sudo certbot --nginx -d seu-dominio.com
 | `DATABASE_URL` | URL de conexão MySQL | Sim | - |
 | `JWT_SECRET` | Secret para assinatura JWT | Sim | - |
 | `JWT_EXPIRES_IN` | Validade do token JWT | Não | 7d |
-| `ZELLO_BASE_URL` | URL base da API Zello | Sim | - |
+| `ZELLO_API_URL` | URL base da API Zello | Sim | - |
 | `ZELLO_API_KEY` | Chave da API Zello | Sim | - |
 | `SMTP_HOST` | Host SMTP (opcional) | Não | - |
 | `SMTP_PORT` | Porta SMTP (opcional) | Não | - |
@@ -9174,7 +9174,7 @@ Certifique-se de que a variável `FRONTEND_URL` no backend está configurada cor
 ### Erro ao Gerar HU/Resumo
 
 1. Verifique se `ZELLO_API_KEY` está configurada
-2. Verifique se `ZELLO_BASE_URL` está correta
+2. Verifique se `ZELLO_API_URL` está correta
 3. Verifique os logs do backend para mais detalhes
 
 ### Erro de Autenticação
@@ -9296,7 +9296,7 @@ services:
       DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
       JWT_SECRET: ${JWT_SECRET:-',8n=RP#O0/O9I'Hg:~.]7a,"ZfS^v8}
       JWT_EXPIRES_IN: 7d
-      ZELLO_BASE_URL: ${ZELLO_BASE_URL:-https://smartdocs-api-hlg.zello.space}
+      ZELLO_API_URL: ${ZELLO_API_URL:-https://smartdocs-api-hlg.zello.space}
       ZELLO_API_KEY: ${ZELLO_API_KEY}
     ports:
       - "3001:3001"
@@ -9381,7 +9381,7 @@ services:
       DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
       JWT_SECRET: ${JWT_SECRET:-",8n=RP#O0/O9I'Hg:~.]7a,\"ZfS^v8"}
       JWT_EXPIRES_IN: 7d
-      ZELLO_BASE_URL: ${ZELLO_BASE_URL:-https://smartdocs-api-hlg.zello.space}
+      ZELLO_API_URL: ${ZELLO_API_URL:-https://smartdocs-api-hlg.zello.space}
       ZELLO_API_KEY: ${ZELLO_API_KEY}
     ports:
       - "3001:3001"
@@ -9466,7 +9466,7 @@ services:
       DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: 7d
-      ZELLO_BASE_URL: ${ZELLO_BASE_URL:-https://smartdocs-api-hlg.zello.space}
+      ZELLO_API_URL: ${ZELLO_API_URL:-https://smartdocs-api-hlg.zello.space}
       ZELLO_API_KEY: ${ZELLO_API_KEY}
     ports:
       - "3001:3001"
@@ -9891,7 +9891,7 @@ services:
       DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: 7d
-      ZELLO_BASE_URL: ${ZELLO_BASE_URL:-https://smartdocs-api-hlg.zello.space}
+      ZELLO_API_URL: ${ZELLO_API_URL:-https://smartdocs-api-hlg.zello.space}
       ZELLO_API_KEY: ${ZELLO_API_KEY}
     ports:
       - "3001:3001"
@@ -9960,7 +9960,7 @@ Correções aplicadas. Resumo:
 1. Criar arquivo `.env` na raiz do projeto (se ainda não existir):
    ```env
    ZELLO_API_KEY=LYIB_WidIVeADAXylsTDcx-6oaWoq5CfPL9W_-bZ5Ag=
-   ZELLO_BASE_URL=https://smartdocs-api-hlg.zello.space
+   ZELLO_API_URL=https://smartdocs-api-hlg.zello.space
    JWT_SECRET=,8n=RP#O0/O9I'Hg:~.]7a,"ZfS^v8
    ```
 
@@ -9990,7 +9990,7 @@ Agora o Docker deve funcionar corretamente. Os containers serão construídos us
 
 ```plaintext
    ZELLO_API_KEY=LYIB_WidIVeADAXylsTDcx-6oaWoq5CfPL9W_-bZ5Ag=
-   ZELLO_BASE_URL=https://smartdocs-api-hlg.zello.space
+   ZELLO_API_URL=https://smartdocs-api-hlg.zello.space
    JWT_SECRET=,8n=RP#O0/O9I'Hg:~.]7a,"ZfS^v8
 ```
 
@@ -10079,7 +10079,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
 
   // Zello API
-  ZELLO_BASE_URL: z.string().url('ZELLO_BASE_URL deve ser uma URL válida'),
+  ZELLO_API_URL: z.string().url('ZELLO_API_URL deve ser uma URL válida'),
   ZELLO_API_KEY: z.string().min(1, 'ZELLO_API_KEY é obrigatória'),
 
   // Email (opcional)

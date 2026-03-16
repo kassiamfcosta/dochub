@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
-import { Label } from '../components/ui/label';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
 import { useToast } from '../hooks/useToast';
 
 const ChangePasswordPage: React.FC = () => {

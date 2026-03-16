@@ -23,17 +23,28 @@ export interface Transcription {
     id: number;
     content: string;
     createdAt: string;
+    generationMode?: 'pipeline' | 'model' | 'gemini';
   };
   summary?: {
     id: number;
     content: string;
     createdAt: string;
+    generationMode?: 'pipeline' | 'model' | 'gemini';
   };
   card?: {
     id: number;
     content: string;
     createdAt: string;
+    generationMode?: 'pipeline' | 'model' | 'gemini';
   };
+  requirements?: {
+    id: number;
+    part1Content?: string;
+    part2Content?: string;
+    createdAt: string;
+    updatedAt: string;
+    generationMode?: 'pipeline' | 'model' | 'gemini';
+  } | null;
   files?: TranscriptionFile[];
   isOwner?: boolean;
    isArchived?: boolean;
@@ -119,26 +130,115 @@ export const transcriptionService = {
   /**
    * Gera História de Usuário
    */
-  async generateUserStory(id: number): Promise<ApiResponse> {
-    const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-user-story`);
+  async generateUserStory(id: number, mode?: 'pipeline' | 'model' | 'gemini'): Promise<ApiResponse> {
+    const params = mode ? { mode } : {};
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-user-story`, {}, { params });
     return response.data;
   },
 
   /**
    * Gera Resumo
    */
-  async generateSummary(id: number): Promise<ApiResponse> {
-    const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-summary`);
+  async generateSummary(id: number, mode?: 'pipeline' | 'model' | 'gemini'): Promise<ApiResponse> {
+    const params = mode ? { mode } : {};
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-summary`, {}, { params });
     return response.data;
   },
   /**
    * Gera Cards
    */
-  async generateCards(id: number): Promise<ApiResponse> {
-    const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-cards`);
+  async generateCards(id: number, mode?: 'pipeline' | 'model' | 'gemini'): Promise<ApiResponse> {
+    const params = mode ? { mode } : {};
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-cards`, {}, { params });
+    return response.data;
+  },
+  /**
+   * Regera História de Usuário
+   */
+  async regenerateUserStory(id: number, mode?: 'pipeline' | 'model' | 'gemini', extraContext?: string): Promise<ApiResponse> {
+    const params = mode ? { mode } : {};
+    const body = extraContext ? { extraContext } : {};
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/regenerate-user-story`, body, { params });
+    return response.data;
+  },
+  /**
+   * Regera Resumo
+   */
+  async regenerateSummary(id: number, mode?: 'pipeline' | 'model' | 'gemini', extraContext?: string): Promise<ApiResponse> {
+    const params = mode ? { mode } : {};
+    const body = extraContext ? { extraContext } : {};
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/regenerate-summary`, body, { params });
+    return response.data;
+  },
+  /**
+   * Regera Cards
+   */
+  async regenerateCards(id: number, mode?: 'pipeline' | 'model' | 'gemini'): Promise<ApiResponse> {
+    const params = mode ? { mode } : {};
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/regenerate-cards`, {}, { params });
+    return response.data;
+  },
+  /**
+   * Restaurar última HU
+   */
+  async restoreUserStory(id: number): Promise<ApiResponse> {
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/restore-user-story`, {});
+    return response.data;
+  },
+  /**
+   * Restaurar último Resumo
+   */
+  async restoreSummary(id: number): Promise<ApiResponse> {
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/restore-summary`, {});
+    return response.data;
+  },
+  /**
+   * Restaurar últimos Cards
+   */
+  async restoreCards(id: number): Promise<ApiResponse> {
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/restore-cards`, {});
     return response.data;
   },
 
+  /**
+   * Gera Levantamento de Requisitos – Parte 1
+   */
+  async generateRequirementsPart1(id: number, mode?: 'pipeline' | 'model' | 'gemini'): Promise<ApiResponse> {
+    const params = mode ? { mode } : {};
+    try {
+      const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-requirements-part1`, {}, { params });
+      return response.data;
+    } catch (err: any) {
+      if (err?.status === 401 && mode !== 'gemini') {
+        const fallback = await api.post<ApiResponse>(`/transcriptions/${id}/generate-requirements-part1`, {}, { params: { mode: 'gemini' } });
+        return fallback.data;
+      }
+      throw err;
+    }
+  },
+  /**
+   * Gera Levantamento de Requisitos – Parte 2
+   */
+  async generateRequirementsPart2(id: number, mode?: 'pipeline' | 'model' | 'gemini'): Promise<ApiResponse> {
+    const params = mode ? { mode } : {};
+    try {
+      const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-requirements-part2`, {}, { params });
+      return response.data;
+    } catch (err: any) {
+      if (err?.status === 401 && mode !== 'gemini') {
+        const fallback = await api.post<ApiResponse>(`/transcriptions/${id}/generate-requirements-part2`, {}, { params: { mode: 'gemini' } });
+        return fallback.data;
+      }
+      throw err;
+    }
+  },
+  /**
+   * Aplica decisão de conflito
+   */
+  async resolveRequirementConflict(id: number, payload: { part: 'part1' | 'part2'; topic: string; chosenVersion: 'A' | 'B' | 'C'; sourceA?: string; sourceB?: string; contentSelected: string; }): Promise<ApiResponse> {
+    const response = await api.post<ApiResponse>(`/transcriptions/${id}/resolve-requirement-conflict`, payload);
+    return response.data;
+  },
   /**
    * Compartilha transcrição com outro usuário
    */

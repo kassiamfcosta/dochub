@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/errors';
-import env from '../config/env';
 
 /**
  * Middleware de tratamento de erros global
@@ -41,10 +40,6 @@ export const errorHandler = (
   res.status(500).json({
     success: false,
     message: 'Erro interno do servidor',
-    ...(env.NODE_ENV === 'development' && {
-      error: err.message,
-      stack: err.stack
-    }),
   });
 };
 

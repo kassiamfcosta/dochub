@@ -130,7 +130,7 @@ const LoginPage: React.FC = () => {
       {/* Right Side - Branding */}
       <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-primary-600 to-primary-800 items-center justify-center p-12">
         <div className="max-w-md text-white">
-          <h1 className="text-5xl font-extrabold mb-4">Doc Hub</h1>
+          <h1 className="text-3xl font-extrabold mb-4">Doc Hub</h1>
           <p className="text-xl text-primary-100 mb-8">
             Transforme suas reuniões em Histórias de Usuário e Resumos com IA
           </p>

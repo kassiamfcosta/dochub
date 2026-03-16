@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Label } from '@/components/ui/label';
+import { utilsService } from '@/services/utils.service';
 
 const ForgotPasswordPage: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -12,6 +13,35 @@ const ForgotPasswordPage: React.FC = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const { requestPasswordReset } = useAuth();
+    const [emailStatus, setEmailStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>('idle');
+    const [emailDetails, setEmailDetails] = useState<{ mxFound?: boolean; allowedDomain?: boolean; disposable?: boolean } | null>(null);
+    const [debounced, setDebounced] = useState('');
+
+    useEffect(() => {
+        const id = setTimeout(() => setDebounced(email.trim()), 350);
+        return () => clearTimeout(id);
+    }, [email]);
+
+    useEffect(() => {
+        const check = async () => {
+            if (!debounced) {
+                setEmailStatus('idle');
+                setEmailDetails(null);
+                return;
+            }
+            setEmailStatus('checking');
+            try {
+                const res = await utilsService.verifyEmail(debounced);
+                const d = res.data!;
+                const ok = d.formatValid && d.mxFound && d.allowedDomain && !d.disposable;
+                setEmailStatus(ok ? 'valid' : 'invalid');
+                setEmailDetails({ mxFound: d.mxFound, allowedDomain: d.allowedDomain, disposable: d.disposable });
+            } catch {
+                setEmailStatus('invalid');
+            }
+        };
+        check();
+    }, [debounced]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -52,6 +82,19 @@ const ForgotPasswordPage: React.FC = () => {
                                     onChange={(e) => setEmail(e.target.value)}
                                     disabled={loading}
                                 />
+                                <div className="mt-1 text-xs" aria-live="polite">
+                                    {emailStatus === 'checking' && (
+                                        <span className="text-neutral-500">Verificando e-mail...</span>
+                                    )}
+                                    {emailStatus === 'valid' && (
+                                        <span className="text-success">E-mail válido e entregável</span>
+                                    )}
+                                    {emailStatus === 'invalid' && (
+                                        <span className="text-error">
+                                            E-mail inválido {emailDetails?.allowedDomain === false ? '(domínio não permitido)' : ''}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                             <Button type="submit" className="w-full" disabled={loading}>
                                 {loading ? 'Enviando...' : 'Enviar Link de Redefinição'}

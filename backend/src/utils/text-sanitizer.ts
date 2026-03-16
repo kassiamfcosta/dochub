@@ -97,7 +97,7 @@ export function cleanAgentOutput(text: string): string {
         t = t.slice(startIdx);
     }
     t = t.replace(/^\s*(entendido[!.]?|ok[!.]?|certo[!.]?)[\s\S]*?(?=(história de usuário|historia de usuario|user story|resumo|cards|card))/i, '');
-    t = t.replace(/\bpróximos passos\b[\s\S]*?(?=(história de usuário|historia de usuario|user story|resumo|cards|card))/i, '');
-    t = t.replace(/\bobservaç[aã]o\b[\s\S]*$/i, '');
+    // Remoção conservadora de cabeçalhos genéricos sem cortar conteúdo principal
+    t = t.replace(/^\s*observaç(?:a|ã)o(?:es)?\s*:\s*/i, '');
     return t.trim();
 }

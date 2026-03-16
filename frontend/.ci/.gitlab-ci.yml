@@ -1,0 +1,55 @@
+stages:
+  - build
+  - push
+  - deploy
+
+variables:
+  IMAGE_NAME: harbor.zello.space/zello-hub/doc-hub-backend
+  IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+  
+before_script:
+  - echo "Iniciando pipeline..."
+
+build-image:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t $IMAGE_NAME:$IMAGE_TAG .
+    - docker tag $IMAGE_NAME:$IMAGE_TAG $IMAGE_NAME:latest
+  only:
+    - main
+    - developer
+    - tags
+
+push-image:
+  stage: push
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - echo $REGISTRY_PASSWORD | docker login -u $REGISTRY_USER $REGISTRY_URL --password-stdin
+    - docker push $IMAGE_NAME:$IMAGE_TAG
+    - docker push $IMAGE_NAME:latest
+  needs: ["build-image"]
+
+# deploy-k8s:
+#   stage: deploy
+#   image: alpine/k8s:1.29.0
+#   variables:
+#     KUBECONFIG: $CI_PROJECT_DIR/kubeconfig
+#   script:
+#     # Decodifica kubeconfig
+#     - echo "$KUBECONFIG_GENERIC_RYU" | base64 -d > "$KUBECONFIG"
+#     - chmod 600 "$KUBECONFIG"
+
+#     # Vai para pasta k8s e aplica manifests
+#     - cd k8s
+#     - kustomize edit set image $IMAGE_NAME=$IMAGE_NAME:$IMAGE_TAG
+#     - kubectl apply -k . -n coe-rpa-sebrae
+#   environment:
+#     name: production
+#   needs: ["push-image"]
+#   only:
+#     - main

@@ -19,14 +19,23 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(30, 'JWT_SECRET deve ter no mínimo 30 caracteres'),
   JWT_EXPIRES_IN: z.string().default('7d'),
 
-  // Agent API - Agentes pré-configurados
+  MODO_ZELLO_MIND: z.enum(['agent', 'model', 'gemini', 'pipeline']).default('pipeline'),
+
   ZELLO_API_URL: z.string().url().default('https://smartdocs-api-hlg.zello.space'),
   ZELLO_API_KEY: z.string().min(1, 'ZELLO_API_KEY é obrigatória'),
   AGENT_HU_ID: z.string().default('692704d81c546166c00f0188'),
   AGENT_RESUMO_ID: z.string().default('692701451c546166c00efdf4'),
   AGENT_CARDS_ID: z.string().default('69261314fffadaeffcb2387c'),
 
-  // Business Map (opcional, usado para criação automática de cards)
+  ZELLO_BASE_URL: z.string().url().optional(),
+  OPENROUTER_API_KEY: z.string().optional(),
+  AGENT_HU_CORE_ID: z.string().default('6957dbfc1189cf24fb679f85'),
+  AGENT_HU_GOV_ID: z.string().default('6957dbf41189cf24fb679f82'),
+  AGENT_HU_UI_BDD_ID: z.string().default('6957dbe71189cf24fb679f7d'),
+  AGENT_HU_COMPILER_ID: z.string().default('696651b2c8038e89b32d9122'),
+  AGENT_REQ_PART1_ID: z.string().default('696fbe399d359610af461e8d'),
+  AGENT_REQ_PART2_ID: z.string().default('696fbe4e9d359610af461e8e'),
+
   BUSINESS_MAP_API_URL: z.string().url().optional(),
   BUSINESS_MAP_API_KEY: z.string().optional(),
   BUSINESS_MAP_BOARD_ID: z.string().optional(),
@@ -39,7 +48,17 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
+  SMTP_FROM_NAME: z.string().optional(),
   EMAIL_FORCE_SMTP: z.string().optional(),
+  ALLOWED_EMAIL_DOMAIN: z.string().default('zello.tec.br'),
+
+  // Speech-to-Text
+  SPEECH_PROVIDER: z.enum(['auto', 'deepgram', 'mock', 'whisper']).default('auto'),
+  DEEPGRAM_API_KEY: z.string().optional(),
+  WHISPER_API_URL: z.string().url().optional(),
+  WHISPER_PYTHON_BIN: z.string().default('python'),
+  WHISPER_LOCAL_MODEL: z.string().default('base'),
+  WHISPER_LANGUAGE: z.string().default('pt'),
 });
 
 type Env = z.infer<typeof envSchema>;

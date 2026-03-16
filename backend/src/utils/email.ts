@@ -16,6 +16,7 @@ function getSmtpConfig() {
     const user = env.SMTP_USER;
     const pass = env.SMTP_PASS;
     const from = env.SMTP_FROM ?? user;
+    const fromName = env.SMTP_FROM_NAME ?? 'Doc Hub';
 
     if (!host) {
         throw new Error('Configuração de SMTP ausente: defina SMTP_HOST');
@@ -30,7 +31,7 @@ function getSmtpConfig() {
         throw new Error('Configuração de SMTP ausente: defina SMTP_FROM');
     }
 
-    return { host, port, secure, user, pass, from };
+    return { host, port, secure, user, pass, from, fromName };
 }
 
 let cachedTransporter: nodemailer.Transporter | null = null;
@@ -58,7 +59,7 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
         const transporter = getTransporter();
 
         await transporter.sendMail({
-            from: smtp.from,
+            from: { name: smtp.fromName, address: smtp.from },
             to: options.to,
             subject: options.subject,
             html: options.html,

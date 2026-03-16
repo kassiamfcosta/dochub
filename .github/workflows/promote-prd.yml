@@ -1,0 +1,43 @@
+name: Promoção para PRD
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag a promover (vX.Y.Z)
+        required: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    environment:
+      name: PRD
+      url: ${{ steps.meta.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Metadados
+        id: meta
+        run: |
+          if [ -n "${{ secrets.PRD_URL }}" ]; then echo "url=${{ secrets.PRD_URL }}" >> $GITHUB_OUTPUT; else echo "url=" >> $GITHUB_OUTPUT; fi
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Validar imagens existentes
+        run: |
+          IMAGE_BACKEND=ghcr.io/${{ github.repository_owner }}/doc-hub-backend:${{ github.event.inputs.tag }}
+          IMAGE_FRONTEND=ghcr.io/${{ github.repository_owner }}/doc-hub-frontend:${{ github.event.inputs.tag }}
+          docker pull "$IMAGE_BACKEND" || true
+          docker pull "$IMAGE_FRONTEND" || true
+      - name: Deploy remoto
+        if: ${{ secrets.PRD_DEPLOY_COMMAND != '' }}
+        uses: appleboy/ssh-action@v0.1.19
+        with:
+          host: ${{ secrets.PRD_SSH_HOST }}
+          username: ${{ secrets.PRD_SSH_USER }}
+          key: ${{ secrets.PRD_SSH_KEY }}
+          script: ${{ secrets.PRD_DEPLOY_COMMAND }}
+          envs: TAG
+        env:
+          TAG: ${{ github.event.inputs.tag }}

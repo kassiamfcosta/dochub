@@ -47,3 +47,8 @@ export function exportPdfViaPrint(title: string, content: string) {
   w.focus();
   w.print();
 }
+
+export function exportSrt(filenameBase: string, srt: string) {
+  const filename = `${sanitizeFilename(filenameBase)}.srt`;
+  download(filename, 'application/x-subrip', srt);
+}

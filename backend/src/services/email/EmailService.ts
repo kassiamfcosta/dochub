@@ -55,7 +55,7 @@ export class NodemailerEmailService implements EmailService {
       host: env.SMTP_HOST,
       port,
       secure,
-      from: env.SMTP_FROM || env.SMTP_USER,
+      from: { name: env.SMTP_FROM_NAME || 'Doc Hub', address: env.SMTP_FROM || env.SMTP_USER },
       user: env.SMTP_USER,
     });
   }
@@ -66,14 +66,16 @@ export class NodemailerEmailService implements EmailService {
         to: email,
       });
 
+      const fromAddress = env.SMTP_FROM || env.SMTP_USER || '';
+      const fromName = env.SMTP_FROM_NAME || 'Doc Hub';
       await this.transporter.sendMail({
-        from: env.SMTP_FROM || env.SMTP_USER, // Remetente
-        to: email, // Destinatário
-        subject: 'Seu código de verificação - StoryForge',
+        from: { name: fromName, address: fromAddress },
+        to: email,
+        subject: 'Seu código de verificação - Doc Hub',
         text: `Seu código de verificação é: ${code}\n\nEste código expira em 15 minutos.`,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-            <h2 style="color: #2563eb;">StoryForge</h2>
+            <h2 style="color: #2563eb;">Doc Hub</h2>
             <p>Olá,</p>
             <p>Seu código de verificação é:</p>
             <h1 style="font-size: 32px; letter-spacing: 5px; background: #f3f4f6; padding: 10px; border-radius: 8px; display: inline-block;">${code}</h1>

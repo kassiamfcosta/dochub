@@ -11,6 +11,7 @@
   - JavaScript/TypeScript (Node.js, React, full-stack projects).
 - Respect the stack of the active project (do not force a different framework just by preference).
 - When in doubt, ask which stack/context is being used.
+- Always update Docker, Node, and other environments after a change.
 
 3. Testing & TDD
 - Encourage TDD or at least test-first thinking:

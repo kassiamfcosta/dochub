@@ -1,0 +1,15 @@
+{
+  "name": "doc-hub-workspace",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm run dev -w frontend",
+    "dev:backend": "npm run dev -w backend",
+    "build": "npm run build -w frontend && npm run build -w backend",
+    "test": "npm run test -w backend && npm run test -w frontend",
+    "typecheck": "npm run build -w backend && npm run build -w frontend"
+  }
+}
