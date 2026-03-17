@@ -1,0 +1,92 @@
+services:
+  # Banco de dados MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: zello_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: 405b7f9e
+      MYSQL_DATABASE: zello_transcription_hub
+      MYSQL_USER: zello_user
+      MYSQL_PASSWORD: zello_password_change_me
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - zello_network
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      timeout: 20s
+      retries: 10
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zello_backend
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
+      FRONTEND_URL: http://localhost:4173
+    ports:
+      - "3001:3001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      whisper:
+        condition: service_healthy
+
+    networks:
+      - zello_network
+    command: sh -c "npm run db:push && npm run start"
+
+  # Frontend React
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: zello_frontend
+    restart: unless-stopped
+    env_file:
+      - ../frontend/.env
+    ports:
+      - "4173:4173"
+    depends_on:
+      - backend
+    networks:
+      - zello_network
+    command: sh -c "npm run build && npm run preview -- --host"
+
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: zello_whisper
+    restart: unless-stopped
+    environment:
+      ASR_MODEL: tiny
+      ASR_ENGINE: openai_whisper
+    ports:
+      - "9000:9000"
+    volumes:
+      - whisper_cache:/root/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/"]
+      interval: 30s
+      timeout: 60s
+      retries: 10
+    networks:
+      - zello_network
+
+volumes:
+  mysql_data:
+  whisper_cache:
+
+
+networks:
+  zello_network:
+    driver: bridge

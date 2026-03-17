@@ -94,7 +94,7 @@ export class WhisperSpeechToTextService implements SpeechToTextService {
       os.tmpdir(),
       `doc-hub-whisper-${Date.now()}-${randomUUID()}${this.extensionFromMimeType(mimeType)}`
     );
-    const scriptPath = path.resolve(process.cwd(), 'scripts', 'whisper_local_transcribe.py');
+    const scriptPath = path.resolve(__dirname, '../../scripts/whisper_local_transcribe.py');
 
     try {
       await fs.writeFile(tempFile, buffer);
