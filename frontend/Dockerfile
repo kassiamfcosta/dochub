@@ -2,17 +2,17 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copiar package.json e package-lock.json
 COPY package*.json ./
-
-# Instalar dependências
 RUN npm install
 
-# Copiar código fonte
 COPY . .
 
-# Expor porta
-EXPOSE 5173
+# Vite embute variáveis no build; padrão para Docker na máquina local
+ARG VITE_API_URL=http://localhost:3001/api
+ENV VITE_API_URL=$VITE_API_URL
 
-# Comando padrão (pode ser sobrescrito no docker-compose)
-CMD ["npm", "run", "dev", "--", "--host"]
+EXPOSE 5173
+EXPOSE 4173
+
+# Dev local; em produção o compose usa build + preview na porta 4173
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

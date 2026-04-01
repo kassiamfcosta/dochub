@@ -142,11 +142,15 @@ export class TranscriptionController {
 
     if (Array.isArray(files) && files.length > 0) {
       await db.insert(transcriptionFiles).values(
-        files.map((file: { name: string; size: number; mimeType: string }) => ({
+        files.map((file: { name: string; size: number; mimeType: string; extractedText?: string | null }) => ({
           transcriptionId: transcription.id,
           name: file.name,
           size: Number(file.size),
           mimeType: file.mimeType,
+          extractedText:
+            file.extractedText != null && String(file.extractedText).trim()
+              ? String(file.extractedText).trim()
+              : null,
         }))
       );
     }
@@ -292,11 +296,15 @@ export class TranscriptionController {
 
       if (Array.isArray(files) && files.length > 0) {
         await db.insert(transcriptionFiles).values(
-          files.map((file: { name: string; size: number; mimeType: string }) => ({
+          files.map((file: { name: string; size: number; mimeType: string; extractedText?: string | null }) => ({
             transcriptionId: parseInt(id, 10),
             name: file.name,
             size: Number(file.size),
             mimeType: file.mimeType,
+            extractedText:
+              file.extractedText != null && String(file.extractedText).trim()
+                ? String(file.extractedText).trim()
+                : null,
           }))
         );
       }

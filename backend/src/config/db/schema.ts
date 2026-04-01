@@ -1,4 +1,16 @@
-import { mysqlTable, int, varchar, text, longtext, boolean, timestamp, uniqueIndex, index, mysqlEnum, decimal } from 'drizzle-orm/mysql-core';
+import {
+  mysqlTable,
+  int,
+  varchar,
+  text,
+  longtext,
+  boolean,
+  timestamp,
+  uniqueIndex,
+  index,
+  mysqlEnum,
+  decimal,
+} from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
 /**
@@ -44,6 +56,8 @@ export const transcriptionFiles = mysqlTable('transcription_files', {
   name: varchar('name', { length: 255 }).notNull(),
   size: int('size').notNull(),
   mimeType: varchar('mime_type', { length: 255 }).notNull(),
+  /** Texto extraído no upload (PDF/DOCX/TXT) para uso quando o campo principal da transcrição estiver vazio */
+  extractedText: longtext('extracted_text'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({
   transcriptionIdIdx: index('transcription_files_transcription_id_idx').on(table.transcriptionId),
@@ -334,7 +348,14 @@ export const planningItems = mysqlTable('planning_items', {
   transcriptionId: int('transcription_id').notNull().references(() => transcriptions.id, { onDelete: 'cascade' }),
   title: varchar('title', { length: 500 }).notNull(),
   description: text('description'),
-  storyPoints: int('story_points').notNull().default(1),
+  /** Pontos numéricos do planning poker (inclui 0,5). Se pokerSpecial estiver preenchido, use 0. */
+  storyPoints: decimal('story_points', { precision: 10, scale: 2 }).notNull().default('1.00'),
+  /** Valores especiais: unknown (?), infinity (∞), coffee (☕ pausa) */
+  pokerSpecial: varchar('poker_special', { length: 20 }),
+  /** Horas estimadas informadas na etapa de cronograma (seg–sex); prioridade sobre pontos×config */
+  estimatedHours: decimal('estimated_hours', { precision: 10, scale: 2 }),
+  /** HU predecessor (caminho crítico / dependências). FK aplicada via migration SQL. */
+  dependsOnItemId: int('depends_on_item_id'),
   sortOrder: int('sort_order').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
@@ -343,13 +364,52 @@ export const planningItems = mysqlTable('planning_items', {
 }));
 
 /**
+ * Dependências N:N entre itens de planejamento (item -> depende de -> outro item)
+ */
+export const planningItemDependencies = mysqlTable(
+  'planning_item_dependencies',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    transcriptionId: int('transcription_id')
+      .notNull()
+      .references(() => transcriptions.id, { onDelete: 'cascade' }),
+    itemId: int('item_id')
+      .notNull()
+      .references(() => planningItems.id, { onDelete: 'cascade' }),
+    dependsOnItemId: int('depends_on_item_id')
+      .notNull()
+      .references(() => planningItems.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    uniq: uniqueIndex('planning_item_dependencies_uniq').on(
+      table.transcriptionId,
+      table.itemId,
+      table.dependsOnItemId
+    ),
+    transcriptionIdx: index('planning_item_dependencies_transcription_id_idx').on(table.transcriptionId),
+    itemIdx: index('planning_item_dependencies_item_id_idx').on(table.itemId),
+    dependsIdx: index('planning_item_dependencies_depends_on_item_id_idx').on(table.dependsOnItemId),
+  })
+);
+
+/**
  * Configuração de pontos x tempo (Planning Poker) por transcrição
  */
 export const planningPointConfig = mysqlTable('planning_point_config', {
   id: int('id').primaryKey().autoincrement(),
   transcriptionId: int('transcription_id').notNull().references(() => transcriptions.id, { onDelete: 'cascade' }).unique(),
   hoursPerPoint: decimal('hours_per_point', { precision: 5, scale: 2 }).notNull().default('4.00'),
-  hoursPerDay: decimal('hours_per_day', { precision: 5, scale: 2 }).notNull().default('6.00'),
+  /** Jornada média em dia útil (ex.: 8h seg–sex); legado — capacidade total do time = developer_count × hours_per_dev_per_day */
+  hoursPerDay: decimal('hours_per_day', { precision: 5, scale: 2 }).notNull().default('8.00'),
+  /** Quantidade de desenvolvedores (capacidade paralela). */
+  developerCount: int('developer_count').notNull().default(1),
+  /** Horas por dev por dia útil (foco). */
+  hoursPerDevPerDay: decimal('hours_per_dev_per_day', { precision: 5, scale: 2 }).notNull().default('8.00'),
+  /** Margem de incerteza (%) aplicada a HUs com pontos ≥ limiar (estimativa por pontos). */
+  marginPercent: decimal('margin_percent', { precision: 5, scale: 2 }).notNull().default('15.00'),
+  /** Story points mínimos para aplicar margem (ex.: Fibonacci ≥ 8). */
+  marginPointsThreshold: decimal('margin_points_threshold', { precision: 10, scale: 2 }).notNull().default('8.00'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
 }, (table) => ({
@@ -360,6 +420,21 @@ export const planningItemsRelations = relations(planningItems, ({ one }) => ({
   transcription: one(transcriptions, {
     fields: [planningItems.transcriptionId],
     references: [transcriptions.id],
+  }),
+}));
+
+export const planningItemDependenciesRelations = relations(planningItemDependencies, ({ one }) => ({
+  transcription: one(transcriptions, {
+    fields: [planningItemDependencies.transcriptionId],
+    references: [transcriptions.id],
+  }),
+  item: one(planningItems, {
+    fields: [planningItemDependencies.itemId],
+    references: [planningItems.id],
+  }),
+  dependsOnItem: one(planningItems, {
+    fields: [planningItemDependencies.dependsOnItemId],
+    references: [planningItems.id],
   }),
 }));
 

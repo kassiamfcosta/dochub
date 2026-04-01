@@ -18,7 +18,7 @@ export class OpenRouterGeminiService {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${env.OPENROUTER_API_KEY}`,
       },
-      timeout: 120000,
+      timeout: 240000,
     });
   }
 
@@ -79,34 +79,65 @@ export class OpenRouterGeminiService {
   }
 
   /**
-   * Sugere quantidade e títulos de HUs para planejamento (retorno estruturado JSON).
+   * Sugere HUs para planejamento (JSON com título + descrição/tópicos por HU).
    */
-  async suggestPlanningHUs(context: string): Promise<{ qtdSugerida: number; titulos: string[] }> {
+  async suggestPlanningHUs(context: string): Promise<{
+    qtdSugerida: number;
+    titulos: string[];
+    itens: Array<{ titulo: string; descricao?: string | null; dependeDeTitulo?: string | null }>;
+  }> {
     const sanitized = sanitizeTextForJson(context) || 'Sem contexto documental fornecido';
     const prompt = [
-      'Com base no contexto abaixo, sugira APENAS uma lista de funcionalidades/HUs (títulos) para planejamento.',
-      'Retorne SOMENTE um JSON válido, sem texto antes ou depois, no formato:',
-      '{"qtdSugerida": N, "titulos": ["Título HU 1", "Título HU 2", ...]}',
-      'Onde N é a quantidade de itens na lista. titulos deve ser um array de strings, cada uma sendo o título de uma HU/funcionalidade.',
+      'Com base no contexto abaixo, identifique HUs por recorte funcional distinto.',
+      'Retorne SOMENTE JSON válido, sem markdown, no formato:',
+      '{"qtdSugerida": N, "itens": [',
+      '  {"titulo": "...", "descricao": "...", "dependeDeTitulo": "título EXATO de outra HU listada antes, ou omita se não houver dependência"}',
+      ']}',
+      'Regras: cada objeto em "itens" é UMA HU completa; "titulo" é curto; "descricao" reúne OBJ, critérios ou notas — não use placeholders [Funcionalidade].',
+      'Ordene as HUs respeitando o caminho crítico: quem for predecessor deve aparecer ANTES do dependente. Use "dependeDeTitulo" só quando uma HU só pode ser feita depois de outra (ex.: "API de login" antes de "Tela de login").',
+      'Se não houver tópicos extras, use "descricao": "" ou omita.',
       '',
       'Contexto:',
       sanitized,
     ].join('\n');
     const output = await this.complete(prompt);
     const raw = (output || '').trim();
-    // Remove possível bloco markdown ```json ... ```
     let jsonStr = raw;
     const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       jsonStr = jsonMatch[1].trim();
     }
     try {
-      const parsed = JSON.parse(jsonStr) as { qtdSugerida?: number; titulos?: string[] };
-      const qtd = typeof parsed.qtdSugerida === 'number' ? parsed.qtdSugerida : (parsed.titulos?.length ?? 0);
+      const parsed = JSON.parse(jsonStr) as {
+        qtdSugerida?: number;
+        itens?: Array<{ titulo?: string; descricao?: string | null; dependeDeTitulo?: string | null }>;
+        titulos?: string[];
+      };
+      if (Array.isArray(parsed.itens) && parsed.itens.length > 0) {
+        const itens = parsed.itens
+          .map((x) => ({
+            titulo: typeof x.titulo === 'string' ? x.titulo.trim() : '',
+            descricao:
+              x.descricao != null && String(x.descricao).trim() ? String(x.descricao).trim() : undefined,
+            dependeDeTitulo:
+              x.dependeDeTitulo != null && String(x.dependeDeTitulo).trim()
+                ? String(x.dependeDeTitulo).trim()
+                : undefined,
+          }))
+          .filter((x) => x.titulo.length > 0);
+        const qtd = typeof parsed.qtdSugerida === 'number' ? parsed.qtdSugerida : itens.length;
+        return {
+          qtdSugerida: itens.length || qtd,
+          titulos: itens.map((x) => x.titulo),
+          itens,
+        };
+      }
       const titulos = Array.isArray(parsed.titulos)
-        ? parsed.titulos.filter((t): t is string => typeof t === 'string')
+        ? parsed.titulos.filter((t): t is string => typeof t === 'string' && t.trim().length > 0)
         : [];
-      return { qtdSugerida: titulos.length || qtd, titulos };
+      const qtd = typeof parsed.qtdSugerida === 'number' ? parsed.qtdSugerida : titulos.length;
+      const itens = titulos.map((t) => ({ titulo: t.trim(), descricao: undefined as string | undefined }));
+      return { qtdSugerida: titulos.length || qtd, titulos, itens };
     } catch {
       throw new AppError(500, 'Resposta da IA para sugestão de HUs não é um JSON válido');
     }

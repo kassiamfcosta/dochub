@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent, type DragEvent, type FC, type FormEvent, type MouseEvent } from 'react';
 import { transcriptionService } from '../services/transcription.service';
+import { extractTextFromFiles } from '../services/file.service';
 import { audioService } from '../services/audio.service';
 import { exportSrt } from '../utils/export';
 import { Button } from './ui/Button';
@@ -157,22 +158,32 @@ const CreateTranscriptionModal: FC<CreateTranscriptionModalProps> = ({
     setLoading(true);
 
     try {
-      let finalContent = '';
+      let finalContent = content.trim();
 
-      if (content.trim()) {
-        finalContent = finalContent
-          ? `${finalContent}\n\n${content.trim()}`
-          : content.trim();
+      let perFileExtracts: Array<{ name: string; text: string }> = [];
+      if (files.length > 0) {
+        const { combinedText, perFile } = await extractTextFromFiles(files);
+        perFileExtracts = perFile;
+        const trimmed = combinedText.trim();
+        if (!trimmed) {
+          setError(
+            'Não foi possível extrair texto dos documentos. Use PDF, DOCX, TXT ou MD válidos, ou cole o texto manualmente no campo abaixo.'
+          );
+          setLoading(false);
+          return;
+        }
+        finalContent = finalContent ? `${trimmed}\n\n${finalContent}` : trimmed;
       }
 
       await transcriptionService.create({
         title,
         content: finalContent,
         description: description || undefined,
-        files: files.map((file) => ({
+        files: files.map((file, index) => ({
           name: file.name,
           size: file.size,
           mimeType: file.type || 'application/octet-stream',
+          extractedText: perFileExtracts[index]?.text ?? '',
         })),
       });
       setTitle('');
@@ -390,7 +401,7 @@ const CreateTranscriptionModal: FC<CreateTranscriptionModalProps> = ({
 
             <div>
               <label htmlFor="content" className="block text-sm font-medium text-neutral-700 mb-2">
-                Conteúdo adicional (opcional)
+                Conteúdo do contexto (opcional se importar documento)
               </label>
               <textarea
                 id="content"
@@ -398,10 +409,15 @@ const CreateTranscriptionModal: FC<CreateTranscriptionModalProps> = ({
                 value={content}
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg border border-neutral-300 focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none transition-colors resize-none custom-scrollbar"
-                placeholder="Adicione contexto adicional ou regras para os documentos (opcional)."
+                placeholder="Cole transcrição ou regras. Se você importar PDF/DOCX/TXT acima, o texto será extraído automaticamente ao criar o contexto."
               />
               <p className="mt-1 text-xs text-neutral-500">
                 {content.length} caracteres
+                {files.length > 0 && (
+                  <span className="block text-neutral-600 mt-1">
+                    Com documentos anexados, o conteúdo extraído será salvo no campo principal (e o texto desta caixa, se houver, será acrescentado abaixo).
+                  </span>
+                )}
               </p>
             </div>
 

@@ -9,7 +9,16 @@ type Mode = 'pipeline' | 'model' | 'gemini';
 /**
  * Tipos de agentes disponíveis
  */
-export type AgentType = 'HU' | 'HU_PREVIEW' | 'RESUMO' | 'CARDS' | 'HU_PIPELINE_PART1' | 'HU_PIPELINE_PART2' | 'REQ_PART1' | 'REQ_PART2';
+export type AgentType =
+  | 'HU'
+  | 'HU_PREVIEW'
+  | 'RESUMO'
+  | 'CARDS'
+  | 'HU_PIPELINE_PART1'
+  | 'HU_PIPELINE_PART2'
+  | 'REQ_PART1'
+  | 'REQ_PART2'
+  | 'HU_IDENTIFIER';
 
 /**
  * Interface para resposta da API de Execução de Agente
@@ -42,6 +51,7 @@ const AGENT_IDS: Record<AgentType, () => string> = {
   HU_PIPELINE_PART2: () => env.AGENT_HU_CORE_ID,
   REQ_PART1: () => env.AGENT_REQ_PART1_ID,
   REQ_PART2: () => env.AGENT_REQ_PART2_ID,
+  HU_IDENTIFIER: () => env.AGENT_HU_IDENTIFIER_ID,
 };
 
 /**
@@ -53,7 +63,7 @@ export class ZelloMindService {
   private modelService: ZelloMindModelService;
   private geminiService: OpenRouterGeminiService;
   private readonly maxRetries = 2;
-  private readonly timeout = 120000; // 120 segundos (agentes podem demorar)
+  private readonly timeout = 240000; // 240 segundos (agentes podem demorar)
 
   constructor() {
     this.client = axios.create({
@@ -158,6 +168,18 @@ export class ZelloMindService {
         ' Ação requerida: Usuário deve escolher A ou B (ou sugerir nova versão C).',
         ' <<<<<<< FIM DO CONFLITO',
         ' Mantenha rastreabilidade indicando a fonte quando possível.',
+      ].join('');
+    }
+    if (agentType === 'HU_IDENTIFIER') {
+      return [
+        ' INSTRUÇÃO (Identificador de HUs): Cada HU é um BLOCO: começa com uma linha HU: e termina imediatamente antes da próxima linha HU:.',
+        ' Nas linhas seguintes à HU:, coloque os tópicos da mesma HU (OBJ: ou OBJETIVO:, CA:, CRIT:, etc.) — não crie outra HU separada só para OBJ.',
+        ' Formato: HU: <nome real> – <ação real> (sem placeholders [Funcionalidade]). Depois, linhas opcionais com OBJ/ demais tópicos até a próxima HU:.',
+        ' Não use markdown (#, **), nem avisos de falta de acesso a arquivo. Não repita linhas só com colchetes de exemplo.',
+        ' Exemplo:',
+        ' HU: Extrato – Visualizar transações',
+        ' OBJ: Permitir listagem cronológica.',
+        ' HU: Extrato – Exportar PDF',
       ].join('');
     }
     if (agentType === 'REQ_PART2') {
@@ -366,9 +388,245 @@ export class ZelloMindService {
   }
 
   /**
-   * Sugere quantidade e títulos de HUs para a aba de planejamento (usa Gemini, retorno estruturado).
+   * Remove ruído comum de markdown / seções na linha de título.
    */
-  async suggestPlanningHUs(context: string): Promise<{ qtdSugerida: number; titulos: string[] }> {
-    return this.geminiService.suggestPlanningHUs(context);
+  private stripHuTitleNoise(s: string): string {
+    return s
+      .replace(/^\s*#+\s*/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/^[`"'«»]+|[`"'«»]+$/g, '')
+      .trim();
+  }
+
+  private dedupeHuTitles(titles: string[]): string[] {
+    const seen = new Set<string>();
+    return titles.filter((t) => {
+      const key = t.toLowerCase().trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  /**
+   * Rejeita placeholders do modelo, avisos de "sem acesso ao arquivo" e parágrafos longos.
+   */
+  private isJunkHuTitle(t: string): boolean {
+    const s = (t || '').trim();
+    if (!s) return true;
+    if (s.length > 220) return true;
+    if (/\[funcionalidade\]\s*[-–]\s*\[ação principal\]/i.test(s)) return true;
+    if (/\[funcionalidade\]|\[ação principal\]|\[objetivo opcional\]|\[objetivo da funcionalidade\]/i.test(s)) {
+      return true;
+    }
+    if (/^obj\s*:\s*\[/i.test(s)) return true;
+    if (
+      /não\s+(é\s+)?possível|não\s+há\s+acesso|como\s+não\s+há\s+acesso|não\s+é\s+possível\s+extrair|sem\s+acesso\s+ao\s+arquivo/i.test(
+        s
+      )
+    ) {
+      return true;
+    }
+    if (/^\*?\(?\s*nota:/i.test(s)) return true;
+    if (/formato acima é um exemplo|apenas um exemplo/i.test(s)) return true;
+    return false;
+  }
+
+  /** Um item de planejamento sugerido: título + tópicos (OBJ, CA, etc.) na descrição. */
+  private sanitizeHuItems(items: Array<{ titulo: string; descricao?: string | null }>): Array<{
+    titulo: string;
+    descricao?: string | null;
+  }> {
+    const seen = new Set<string>();
+    const out: Array<{ titulo: string; descricao?: string | null }> = [];
+    for (const it of items) {
+      let t = (it.titulo || '').trim();
+      t = t.replace(/^T[IÍ]TULO\s*:\s*/i, '');
+      t = this.stripHuTitleNoise(t);
+      if (!t || t.length < 3 || this.isJunkHuTitle(t)) continue;
+      const key = t.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      let d = it.descricao?.trim() || '';
+      if (d && this.isJunkHuBody(d)) d = '';
+      out.push({ titulo: t, descricao: d || undefined });
+    }
+    return out;
+  }
+
+  private isJunkHuBody(s: string): boolean {
+    const t = s.trim();
+    if (!t) return true;
+    if (/\[objetivo da funcionalidade\]|\[objetivo opcional\]/i.test(t)) return true;
+    return false;
+  }
+
+  /**
+   * Parse principal: cada HU começa em "HU:"; tudo até o próximo "HU:" vira descrição (OBJ, CRIT, etc.).
+   */
+  private parseHuColonBlocks(raw: string): Array<{ titulo: string; descricao?: string | null }> {
+    const lines = raw.replace(/\r\n/g, '\n').split('\n');
+    const items: Array<{ titulo: string; descricao?: string | null }> = [];
+    let i = 0;
+    while (i < lines.length) {
+      const rawLine = lines[i].trim();
+      if (!rawLine) {
+        i++;
+        continue;
+      }
+      const hm = rawLine.match(/^HU\s*:\s*(.+)$/i);
+      if (!hm) {
+        i++;
+        continue;
+      }
+      const titulo = this.stripHuTitleNoise(hm[1]);
+      if (titulo.length < 3 || this.isJunkHuTitle(titulo)) {
+        i++;
+        continue;
+      }
+      const body: string[] = [];
+      i++;
+      while (i < lines.length) {
+        const L = lines[i];
+        const t = L.trim();
+        if (t && /^HU\s*:/i.test(t)) break;
+        if (L.length) body.push(L.trimEnd());
+        i++;
+      }
+      const descricao = body
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .join('\n')
+        .trim();
+      items.push({ titulo, descricao: descricao || undefined });
+    }
+    return items;
+  }
+
+  private parseHuBeginEndBlocks(raw: string): Array<{ titulo: string; descricao?: string | null }> {
+    const text = raw.replace(/\r\n/g, '\n');
+    const items: Array<{ titulo: string; descricao?: string | null }> = [];
+    const blockRe = /HU_BEGIN\s*([\s\S]*?)\s*HU_END/gi;
+    let bm: RegExpExecArray | null;
+    while ((bm = blockRe.exec(text)) !== null) {
+      const block = bm[1];
+      let titulo = '';
+      const extras: string[] = [];
+      for (const line of block.split('\n')) {
+        const t = line.trim();
+        if (!t) continue;
+        if (/^T[IÍ]TULO\s*:/i.test(t)) {
+          titulo = this.stripHuTitleNoise(t.replace(/^T[IÍ]TULO\s*:\s*/i, ''));
+          continue;
+        }
+        if (/^obj\s*:|^objetivo\s*:/i.test(t)) {
+          extras.push(t);
+          continue;
+        }
+        if (!titulo) titulo = this.stripHuTitleNoise(t);
+        else extras.push(t);
+      }
+      if (titulo.length >= 3 && !this.isJunkHuTitle(titulo)) {
+        const descricao = extras.join('\n').trim();
+        items.push({ titulo, descricao: descricao || undefined });
+      }
+    }
+    return items;
+  }
+
+  /**
+   * Converte saída do Identificador em itens (título + bloco de tópicos).
+   */
+  private parseHuIdentifierStructured(raw: string): Array<{ titulo: string; descricao?: string | null }> {
+    const text = (raw || '').replace(/\r\n/g, '\n').trim();
+    if (!text) return [];
+
+    let items = this.parseHuColonBlocks(text);
+    if (items.length > 0) return items;
+
+    items = this.parseHuBeginEndBlocks(text);
+    if (items.length > 0) return items;
+
+    const fromPipe: string[] = [];
+    for (const line of text.split('\n')) {
+      const t = line.trim();
+      const pm = t.match(/^HU\|\s*(.+)$/i);
+      if (pm) fromPipe.push(this.stripHuTitleNoise(pm[1]));
+    }
+    if (fromPipe.length > 0) {
+      return this.dedupeHuTitles(fromPipe).map((titulo) => ({ titulo }));
+    }
+
+    const noiseLine =
+      /^(\s*#|#{1,6}\s|Visão\s+Geral|Lista\s+de\s+HUs|HUs?\s+Sugeridas|Análise\s+de\s+funcionalidades|TEXTO\s+ENVIADO|```|HU_BEGIN|HU_END)/i;
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const legacy: string[] = [];
+
+    for (const line of lines) {
+      if (noiseLine.test(line)) continue;
+      if (/^obj\s*:/i.test(line) || /^objetivo\s*:/i.test(line)) continue;
+      if (line.length > 180) continue;
+
+      let cleaned = line
+        .replace(/^\d+\s*[\.\)]\s*/g, '')
+        .replace(/^(?:[-*•]\s+)+/g, '')
+        .replace(/^HU\s*\d+\s*[-–—]\s*/i, '')
+        .trim();
+
+      if (/^T[IÍ]TULO\s*:/i.test(cleaned)) {
+        cleaned = cleaned.replace(/^T[IÍ]TULO\s*:\s*/i, '').trim();
+      }
+
+      cleaned = this.stripHuTitleNoise(cleaned);
+      if (!cleaned || cleaned.length < 8) continue;
+
+      const dashMatch = cleaned.match(/^(.+?)\s+[–—\-]\s+(.+)$/);
+      const normalized = dashMatch
+        ? `${dashMatch[1].trim()} – ${dashMatch[2].trim()}`
+        : cleaned;
+
+      if (
+        normalized.length >= 8 &&
+        normalized.length <= 160 &&
+        /[–—\-]/.test(normalized) &&
+        !/^(sem\s+descrição|sumário|introdução)$/i.test(normalized)
+      ) {
+        legacy.push(normalized);
+      }
+    }
+
+    return this.dedupeHuTitles(legacy).map((titulo) => ({ titulo }));
+  }
+
+  /**
+   * Sugere HUs com título e, quando houver, descrição agregando OBJ e demais linhas do bloco.
+   */
+  async suggestPlanningHUs(context: string): Promise<{
+    qtdSugerida: number;
+    titulos: string[];
+    itens: Array<{ titulo: string; descricao?: string | null; dependeDeTitulo?: string | null }>;
+  }> {
+    try {
+      const raw = await this.generateContent('HU_IDENTIFIER', context);
+      const itens = this.sanitizeHuItems(this.parseHuIdentifierStructured(raw));
+      if (itens.length > 0) {
+        return {
+          qtdSugerida: itens.length,
+          titulos: itens.map((x) => x.titulo),
+          itens,
+        };
+      }
+      console.warn('[suggestPlanningHUs] Zello Mind retornou lista vazia; tentando Gemini.');
+    } catch (e) {
+      console.warn('[suggestPlanningHUs] Zello Mind (HU_IDENTIFIER) falhou; usando Gemini como fallback:', e);
+    }
+
+    const gemini = await this.geminiService.suggestPlanningHUs(context);
+    const itens = this.sanitizeHuItems(gemini.itens?.length ? gemini.itens : (gemini.titulos || []).map((t) => ({ titulo: t })));
+    return {
+      qtdSugerida: itens.length,
+      titulos: itens.map((x) => x.titulo),
+      itens,
+    };
   }
 }

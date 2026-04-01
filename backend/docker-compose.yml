@@ -1,72 +1,41 @@
+# API + MySQL (stack independente do frontend)
+#   cd backend && docker compose up --build
+# Whisper (transcrição local): docker compose --profile speech up --build
+#
+# API: http://localhost:3001
+# Copie .env.example para .env e preencha JWT_SECRET, ZELLO_API_KEY, etc.
+# FRONTEND_URL no .env: use http://localhost:5173 (Vite) ou http://localhost:4173 (preview Docker)
+
+name: doc-hub-backend
+
 services:
-  # Banco de dados MySQL
   mysql:
     image: mysql:8.0
-    container_name: zello_mysql
+    container_name: doc_hub_mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: 405b7f9e
-      MYSQL_DATABASE: zello_transcription_hub
-      MYSQL_USER: zello_user
-      MYSQL_PASSWORD: zello_password_change_me
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-405b7f9e}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-zello_transcription_hub}
+      MYSQL_USER: ${MYSQL_USER:-zello_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-zello_password_change_me}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - zello_network
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      timeout: 20s
-      retries: 10
-
-  # Backend API
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: zello_backend
-    restart: unless-stopped
-    env_file:
-      - ./.env
-    environment:
-      NODE_ENV: production
-      PORT: 3001
-      DATABASE_URL: mysql://zello_user:zello_password_change_me@mysql:3306/zello_transcription_hub
-      FRONTEND_URL: http://localhost:4173
-    ports:
-      - "3001:3001"
-    depends_on:
-      mysql:
-        condition: service_healthy
-      whisper:
-        condition: service_healthy
-
-    networks:
-      - zello_network
-    command: sh -c "npm run db:push && npm run start"
-
-  # Frontend React
-  frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-    container_name: zello_frontend
-    restart: unless-stopped
-    env_file:
-      - ../frontend/.env
-    ports:
-      - "4173:4173"
-    depends_on:
       - backend
-    networks:
-      - zello_network
-    command: sh -c "npm run build && npm run preview -- --host"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 20s
+      retries: 15
 
   whisper:
     image: onerahmet/openai-whisper-asr-webservice:latest
-    container_name: zello_whisper
+    container_name: doc_hub_whisper
     restart: unless-stopped
+    profiles:
+      - speech
     environment:
       ASR_MODEL: tiny
       ASR_ENGINE: openai_whisper
@@ -75,18 +44,40 @@ services:
     volumes:
       - whisper_cache:/root/.cache
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/"]
-      interval: 30s
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9000/docs"]
+      interval: 15s
       timeout: 60s
-      retries: 10
+      retries: 20
+      start_period: 120s
     networks:
-      - zello_network
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: doc_hub_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: mysql://${MYSQL_USER:-zello_user}:${MYSQL_PASSWORD:-zello_password_change_me}@mysql:3306/${MYSQL_DATABASE:-zello_transcription_hub}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "3001:3001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - backend
+    command: sh -c "npm run db:push && npm run start"
 
 volumes:
   mysql_data:
   whisper_cache:
 
-
 networks:
-  zello_network:
+  backend:
     driver: bridge

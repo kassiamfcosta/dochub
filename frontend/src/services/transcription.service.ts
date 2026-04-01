@@ -1,11 +1,17 @@
 import api from '../config/api';
 
+// "Levantamento de Requisitos" pode demorar bastante (Parte 1 + Parte 2 em sequência no backend),
+// então aumentamos o timeout para evitar ECONNABORTED no axios.
+const LEVANTAMENTO_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutos
+
 export interface TranscriptionFile {
   id: number;
   name: string;
   size: number;
   mimeType: string;
   createdAt: string;
+  /** Presente na API quando o arquivo foi enviado com extração (PDF/DOCX/TXT/MD). */
+  extractedText?: string | null;
 }
 
 export interface Transcription {
@@ -58,6 +64,8 @@ export interface CreateTranscriptionData {
     name: string;
     size: number;
     mimeType: string;
+    /** Texto extraído no upload; persiste no banco para a IA usar sem colar no campo principal */
+    extractedText?: string;
   }>;
 }
 
@@ -69,6 +77,7 @@ export interface UpdateTranscriptionData {
     name: string;
     size: number;
     mimeType: string;
+    extractedText?: string;
   }>;
 }
 
@@ -206,11 +215,19 @@ export const transcriptionService = {
   async generateRequirementsPart1(id: number, mode?: 'pipeline' | 'model' | 'gemini'): Promise<ApiResponse> {
     const params = mode ? { mode } : {};
     try {
-      const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-requirements-part1`, {}, { params });
+      const response = await api.post<ApiResponse>(
+        `/transcriptions/${id}/generate-requirements-part1`,
+        {},
+        { params, timeout: LEVANTAMENTO_TIMEOUT_MS }
+      );
       return response.data;
     } catch (err: any) {
       if (err?.status === 401 && mode !== 'gemini') {
-        const fallback = await api.post<ApiResponse>(`/transcriptions/${id}/generate-requirements-part1`, {}, { params: { mode: 'gemini' } });
+        const fallback = await api.post<ApiResponse>(
+          `/transcriptions/${id}/generate-requirements-part1`,
+          {},
+          { params: { mode: 'gemini' }, timeout: LEVANTAMENTO_TIMEOUT_MS }
+        );
         return fallback.data;
       }
       throw err;
@@ -222,11 +239,43 @@ export const transcriptionService = {
   async generateRequirementsPart2(id: number, mode?: 'pipeline' | 'model' | 'gemini'): Promise<ApiResponse> {
     const params = mode ? { mode } : {};
     try {
-      const response = await api.post<ApiResponse>(`/transcriptions/${id}/generate-requirements-part2`, {}, { params });
+      const response = await api.post<ApiResponse>(
+        `/transcriptions/${id}/generate-requirements-part2`,
+        {},
+        { params, timeout: LEVANTAMENTO_TIMEOUT_MS }
+      );
       return response.data;
     } catch (err: any) {
       if (err?.status === 401 && mode !== 'gemini') {
-        const fallback = await api.post<ApiResponse>(`/transcriptions/${id}/generate-requirements-part2`, {}, { params: { mode: 'gemini' } });
+        const fallback = await api.post<ApiResponse>(
+          `/transcriptions/${id}/generate-requirements-part2`,
+          {},
+          { params: { mode: 'gemini' }, timeout: LEVANTAMENTO_TIMEOUT_MS }
+        );
+        return fallback.data;
+      }
+      throw err;
+    }
+  },
+  /**
+   * Gera Levantamento de Requisitos completo (Parte 1 + Parte 2)
+   */
+  async generateRequirementsComplete(id: number, mode?: 'pipeline' | 'model' | 'gemini'): Promise<ApiResponse> {
+    const params = mode ? { mode } : {};
+    try {
+      const response = await api.post<ApiResponse>(
+        `/transcriptions/${id}/generate-requirements-complete`,
+        {},
+        { params, timeout: LEVANTAMENTO_TIMEOUT_MS }
+      );
+      return response.data;
+    } catch (err: any) {
+      if (err?.status === 401 && mode !== 'gemini') {
+        const fallback = await api.post<ApiResponse>(
+          `/transcriptions/${id}/generate-requirements-complete`,
+          {},
+          { params: { mode: 'gemini' }, timeout: LEVANTAMENTO_TIMEOUT_MS }
+        );
         return fallback.data;
       }
       throw err;

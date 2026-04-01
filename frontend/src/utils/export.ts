@@ -14,6 +14,15 @@ function sanitizeFilename(name: string) {
   return name.replace(/[\\/:*?"<>|]+/g, '').trim().slice(0, 120) || 'documento';
 }
 
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function exportMarkdown(filenameBase: string, content: string) {
   const filename = `${sanitizeFilename(filenameBase)}.md`;
   download(filename, 'text/markdown;charset=utf-8', content);
@@ -26,9 +35,12 @@ export function exportTxt(filenameBase: string, content: string) {
 
 export function exportDoc(filenameBase: string, content: string) {
   const filename = `${sanitizeFilename(filenameBase)}.doc`;
+  const safe = escapeHtml(content);
   const html =
     '<html><head><meta charset="utf-8"></head><body>' +
-    content.replace(/\n/g, '<br/>') +
+    '<pre style="white-space:pre-wrap; font-family: Arial, sans-serif; line-height:1.5; margin:0">' +
+    safe +
+    '</pre>' +
     '</body></html>';
   download(filename, 'application/msword', html);
 }
@@ -36,11 +48,15 @@ export function exportDoc(filenameBase: string, content: string) {
 export function exportPdfViaPrint(title: string, content: string) {
   const w = window.open('', '_blank');
   if (!w) return;
+  const safeTitle = sanitizeFilename(title);
+  const safe = escapeHtml(content);
   w.document.write(
     '<html><head><meta charset="utf-8"><title>' +
-      sanitizeFilename(title) +
-      '</title><style>body{font-family: Arial, sans-serif; line-height:1.5; padding:24px; white-space:pre-wrap}</style></head><body>' +
-      content.replace(/\n/g, '<br/>') +
+      safeTitle +
+      '</title><style>body{font-family: Arial, sans-serif; line-height:1.5; padding:24px;}</style></head><body>' +
+      '<pre style="white-space:pre-wrap; margin:0">' +
+      safe +
+      '</pre>' +
       '</body></html>'
   );
   w.document.close();

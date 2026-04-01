@@ -1,5 +1,9 @@
 import { Request, Response } from 'express';
-import { extractTextFromFile, combineFilesContext, SupportedFileType } from '../utils/file-extractor';
+import {
+    extractTextFromFile,
+    combineFilesContext,
+    resolveEffectiveMimeType,
+} from '../utils/file-extractor';
 import { AppError, ValidationError } from '../utils/errors';
 
 export class FileController {
@@ -11,17 +15,13 @@ export class FileController {
         try {
             const extractedFiles = await Promise.all(
                 (req.files as Express.Multer.File[]).map(async (file) => {
-                    if (!Object.values(SupportedFileType).includes(file.mimetype as SupportedFileType)) {
-                        if (file.mimetype.startsWith('text/')) {
-                            return {
-                                name: file.originalname,
-                                content: extractTextFromFile(file.buffer, SupportedFileType.TXT)
-                            };
-                        }
-                        throw new ValidationError(`Tipo de arquivo não suportado: ${file.mimetype} (${file.originalname})`);
+                    const effective = resolveEffectiveMimeType(file.originalname, file.mimetype);
+                    if (!effective) {
+                        throw new ValidationError(
+                            `Tipo de arquivo não suportado: ${file.mimetype} (${file.originalname})`
+                        );
                     }
-
-                    const content = await extractTextFromFile(file.buffer, file.mimetype);
+                    const content = await extractTextFromFile(file.buffer, effective);
                     return {
                         name: file.originalname,
                         content,
@@ -42,7 +42,11 @@ export class FileController {
                 success: true,
                 data: {
                     text: combinedText,
-                    files: resolvedFiles.map(f => ({ name: f.name, size: f.content.length }))
+                    files: resolvedFiles.map((f) => ({
+                        name: f.name,
+                        size: f.content.length,
+                        text: f.content,
+                    })),
                 }
             });
         } catch (error) {

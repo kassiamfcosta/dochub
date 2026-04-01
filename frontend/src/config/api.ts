@@ -19,7 +19,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<{ success: boolean; message?: string }>) => {
     if (error.code === 'ECONNABORTED') {
-      const customError = new Error('Transcrição demorou mais que o esperado. Tente novamente com áudio menor.');
+      const customError = new Error('A requisição demorou mais que o esperado. Tente novamente em instantes.');
       (customError as any).status = error.response?.status;
       return Promise.reject(customError);
     }

@@ -7,6 +7,7 @@ import { BusinessMapServiceFactory } from '../services/business-map/BusinessMapS
 import env from '../config/env';
 import { NotFoundError, AuthorizationError } from '../utils/errors';
 import { cleanAgentOutput } from '../utils/text-sanitizer';
+import { buildAgentContextFromTranscription } from '../utils/transcription-context';
 
 /**
  * Helper para verificar acesso à transcrição
@@ -40,27 +41,18 @@ async function verifyTranscriptionAccess(transcriptionId: number, userId: number
   return result[0].transcription;
 }
 
-function buildContextFromTranscription(t: any, files: Array<{ name: string; size: number; mimeType: string }>): string {
-  const parts: string[] = [];
-  if (t?.content && typeof t.content === 'string' && t.content.trim()) parts.push(t.content.trim());
-  if (t?.title && typeof t.title === 'string' && t.title.trim()) parts.push(`Título: ${t.title.trim()}`);
-  if (t?.description && typeof t.description === 'string' && t.description.trim()) parts.push(`Descrição: ${t.description.trim()}`);
-  if (Array.isArray(files) && files.length > 0) {
-    const filesDesc = files
-      .map(f => `${f.name} (${f.mimeType || 'desconhecido'}, ${(f.size / 1024).toFixed(1)} KB)`)
-      .join('; ');
-    parts.push(`Arquivos enviados: ${filesDesc}`);
-  }
-  return parts.join(' | ');
-}
-
 async function buildRequirementsContext(transcriptionId: number, userId: number): Promise<{ base: string; part1?: string }> {
   const t = await verifyTranscriptionAccess(transcriptionId, userId);
   const files = await db
-    .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+    .select({
+      name: transcriptionFiles.name,
+      size: transcriptionFiles.size,
+      mimeType: transcriptionFiles.mimeType,
+      extractedText: transcriptionFiles.extractedText,
+    })
     .from(transcriptionFiles)
     .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
-  const base = buildContextFromTranscription(t, files as any);
+  const base = buildAgentContextFromTranscription(t, files as any);
   const notesRows = await db
     .select()
     .from(transcriptionNotes)
@@ -100,10 +92,15 @@ export class GenerationController {
 
     const agentService = ZelloMindServiceFactory.create();
     const files = await db
-      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .select({
+      name: transcriptionFiles.name,
+      size: transcriptionFiles.size,
+      mimeType: transcriptionFiles.mimeType,
+      extractedText: transcriptionFiles.extractedText,
+    })
       .from(transcriptionFiles)
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
-    const context = buildContextFromTranscription(transcription, files as any);
+    const context = buildAgentContextFromTranscription(transcription, files as any);
     const modeParam = typeof req.query.mode === 'string' ? (req.query.mode as any) : undefined;
     const generatedContent = await agentService.generateUserStoryPreview(context, modeParam);
     const cleaned = cleanAgentOutput(generatedContent);
@@ -147,10 +144,15 @@ export class GenerationController {
     // Gera HU usando serviço de agentes
     const agentService = ZelloMindServiceFactory.create();
     const files = await db
-      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .select({
+      name: transcriptionFiles.name,
+      size: transcriptionFiles.size,
+      mimeType: transcriptionFiles.mimeType,
+      extractedText: transcriptionFiles.extractedText,
+    })
       .from(transcriptionFiles)
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
-    const context = buildContextFromTranscription(transcription, files as any);
+    const context = buildAgentContextFromTranscription(transcription, files as any);
     const modeParam = typeof req.query.mode === 'string' ? (req.query.mode as any) : undefined;
     const generatedContent = await agentService.generateUserStory(context, modeParam);
     const cleaned = cleanAgentOutput(generatedContent);
@@ -189,7 +191,7 @@ export class GenerationController {
     const agentService = ZelloMindServiceFactory.create();
     const { base } = await buildRequirementsContext(transcriptionId, userId);
     const modeParam = typeof req.query.mode === 'string' ? (req.query.mode as any) : undefined;
-    const generated = await GenerationController.withTimeout(agentService.generateRequirementsPart1(base, modeParam), 120000);
+    const generated = await GenerationController.withTimeout(agentService.generateRequirementsPart1(base, modeParam), 240000);
     const cleaned = cleanAgentOutput(generated);
 
     const [existing] = await db.select().from(requirements).where(eq(requirements.transcriptionId, transcriptionId)).limit(1);
@@ -228,7 +230,7 @@ export class GenerationController {
     const modeParam = typeof req.query.mode === 'string' ? (req.query.mode as any) : undefined;
 
     const part1Text = part1 || '';
-    const generated = await GenerationController.withTimeout(agentService.generateRequirementsPart2(base, part1Text, modeParam), 150000);
+    const generated = await GenerationController.withTimeout(agentService.generateRequirementsPart2(base, part1Text, modeParam), 240000);
     const cleaned = cleanAgentOutput(generated);
 
     const [existing] = await db.select().from(requirements).where(eq(requirements.transcriptionId, transcriptionId)).limit(1);
@@ -249,6 +251,69 @@ export class GenerationController {
       success: true,
       message: 'Levantamento de Requisitos – Parte 2 gerado com sucesso',
       data: { ...current, part2Content: cleaned },
+    });
+  }
+
+  /**
+   * Gera Levantamento de Requisitos completo (Parte 1 + Parte 2) em uma única solicitação.
+   */
+  static async generateRequirementsComplete(req: Request, res: Response): Promise<void> {
+    if (!req.user) throw new AuthorizationError();
+    const { id } = req.params;
+    const transcriptionId = parseInt(id, 10);
+    const userId = req.user.userId;
+
+    await verifyTranscriptionAccess(transcriptionId, userId);
+    const agentService = ZelloMindServiceFactory.create();
+    const modeParam = typeof req.query.mode === 'string' ? (req.query.mode as any) : undefined;
+
+    const { base } = await buildRequirementsContext(transcriptionId, userId);
+    const generatedPart1 = await GenerationController.withTimeout(
+      agentService.generateRequirementsPart1(base, modeParam),
+      240000
+    );
+    const cleanedPart1 = cleanAgentOutput(generatedPart1);
+
+    const generatedPart2 = await GenerationController.withTimeout(
+      agentService.generateRequirementsPart2(base, cleanedPart1, modeParam),
+      240000
+    );
+    const cleanedPart2 = cleanAgentOutput(generatedPart2);
+
+    const [existing] = await db
+      .select()
+      .from(requirements)
+      .where(eq(requirements.transcriptionId, transcriptionId))
+      .limit(1);
+
+    if (existing) {
+      await db
+        .update(requirements)
+        .set({
+          part1Content: cleanedPart1,
+          part2Content: cleanedPart2,
+          generationMode: modeParam || (env.MODO_ZELLO_MIND as any),
+        })
+        .where(eq(requirements.id, existing.id));
+    } else {
+      await db.insert(requirements).values({
+        transcriptionId,
+        part1Content: cleanedPart1,
+        part2Content: cleanedPart2,
+        generationMode: modeParam || (env.MODO_ZELLO_MIND as any),
+      });
+    }
+
+    const [current] = await db
+      .select()
+      .from(requirements)
+      .where(eq(requirements.transcriptionId, transcriptionId))
+      .limit(1);
+
+    res.status(201).json({
+      success: true,
+      message: 'Levantamento de Requisitos completo (Parte 1 + Parte 2) gerado com sucesso',
+      data: { ...current, part1Content: cleanedPart1, part2Content: cleanedPart2 },
     });
   }
 
@@ -340,10 +405,15 @@ export class GenerationController {
     // Gera resumo usando serviço de agentes
     const agentService = ZelloMindServiceFactory.create();
     const files = await db
-      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .select({
+      name: transcriptionFiles.name,
+      size: transcriptionFiles.size,
+      mimeType: transcriptionFiles.mimeType,
+      extractedText: transcriptionFiles.extractedText,
+    })
       .from(transcriptionFiles)
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
-    const context = buildContextFromTranscription(transcription, files as any);
+    const context = buildAgentContextFromTranscription(transcription, files as any);
     const modeParam = typeof req.query.mode === 'string' ? (req.query.mode as any) : undefined;
     const generatedContent = await agentService.generateSummary(context, modeParam);
     const cleaned = cleanAgentOutput(generatedContent);
@@ -402,10 +472,15 @@ export class GenerationController {
     // Gera cards usando serviço de agentes
     const agentService = ZelloMindServiceFactory.create();
     const files = await db
-      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .select({
+      name: transcriptionFiles.name,
+      size: transcriptionFiles.size,
+      mimeType: transcriptionFiles.mimeType,
+      extractedText: transcriptionFiles.extractedText,
+    })
       .from(transcriptionFiles)
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
-    const contextFromTranscription = buildContextFromTranscription(transcription, files as any);
+    const contextFromTranscription = buildAgentContextFromTranscription(transcription, files as any);
 
     const modeParam = typeof req.query.mode === 'string' ? (req.query.mode as any) : undefined;
     let huContent = '';
@@ -473,10 +548,15 @@ export class GenerationController {
     const [existingHU] = await db.select().from(userStories).where(eq(userStories.transcriptionId, transcriptionId)).limit(1);
     const agentService = ZelloMindServiceFactory.create();
     const files = await db
-      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .select({
+      name: transcriptionFiles.name,
+      size: transcriptionFiles.size,
+      mimeType: transcriptionFiles.mimeType,
+      extractedText: transcriptionFiles.extractedText,
+    })
       .from(transcriptionFiles)
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
-    const baseContext = buildContextFromTranscription(transcription, files as any);
+    const baseContext = buildAgentContextFromTranscription(transcription, files as any);
     const { extraContext } = (req.body || {}) as { extraContext?: string };
     const context = extraContext && typeof extraContext === 'string' && extraContext.trim()
       ? `${baseContext} | Regras adicionais: ${extraContext.trim()}`
@@ -538,10 +618,15 @@ export class GenerationController {
     const [existingSummary] = await db.select().from(summaries).where(eq(summaries.transcriptionId, transcriptionId)).limit(1);
     const agentService = ZelloMindServiceFactory.create();
     const files = await db
-      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .select({
+      name: transcriptionFiles.name,
+      size: transcriptionFiles.size,
+      mimeType: transcriptionFiles.mimeType,
+      extractedText: transcriptionFiles.extractedText,
+    })
       .from(transcriptionFiles)
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
-    const baseContext = buildContextFromTranscription(transcription, files as any);
+    const baseContext = buildAgentContextFromTranscription(transcription, files as any);
     const { extraContext } = (req.body || {}) as { extraContext?: string };
     const context = extraContext && typeof extraContext === 'string' && extraContext.trim()
       ? `${baseContext} | Regras adicionais: ${extraContext.trim()}`
@@ -603,10 +688,15 @@ export class GenerationController {
     const [existingCard] = await db.select().from(cards).where(eq(cards.transcriptionId, transcriptionId)).limit(1);
     const agentService = ZelloMindServiceFactory.create();
     const files = await db
-      .select({ name: transcriptionFiles.name, size: transcriptionFiles.size, mimeType: transcriptionFiles.mimeType })
+      .select({
+      name: transcriptionFiles.name,
+      size: transcriptionFiles.size,
+      mimeType: transcriptionFiles.mimeType,
+      extractedText: transcriptionFiles.extractedText,
+    })
       .from(transcriptionFiles)
       .where(eq(transcriptionFiles.transcriptionId, transcriptionId));
-    const baseContext = buildContextFromTranscription(transcription, files as any);
+    const baseContext = buildAgentContextFromTranscription(transcription, files as any);
     const modeParam = typeof req.query.mode === 'string' ? (req.query.mode as any) : undefined;
 
     // Define conteúdo base para os cards

@@ -16,6 +16,34 @@ export enum SupportedFileType {
     MD = 'text/markdown',
 }
 
+const EXT_TO_TYPE: Record<string, SupportedFileType> = {
+    '.pdf': SupportedFileType.PDF,
+    '.docx': SupportedFileType.DOCX,
+    '.txt': SupportedFileType.TXT,
+    '.md': SupportedFileType.MD,
+};
+
+/**
+ * Muitos navegadores/OS enviam `application/octet-stream` ou `text/plain` para .md/.txt.
+ * Resolve o tipo efetivo para extração usando extensão quando o MIME for genérico.
+ */
+export function resolveEffectiveMimeType(originalname: string, mimetype: string): SupportedFileType | null {
+    const normalized = (mimetype || '').trim().toLowerCase();
+    if (Object.values(SupportedFileType).includes(normalized as SupportedFileType)) {
+        return normalized as SupportedFileType;
+    }
+    const lower = (originalname || '').toLowerCase();
+    const dot = lower.lastIndexOf('.');
+    const ext = dot >= 0 ? lower.slice(dot) : '';
+    if (ext && EXT_TO_TYPE[ext]) {
+        return EXT_TO_TYPE[ext];
+    }
+    if (normalized.startsWith('text/')) {
+        return SupportedFileType.TXT;
+    }
+    return null;
+}
+
 /**
  * Extrai texto de um buffer de arquivo baseado no tipo MIME
  */

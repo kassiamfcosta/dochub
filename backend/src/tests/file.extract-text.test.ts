@@ -32,6 +32,21 @@ describe('Upload e extração de texto de arquivos', () => {
     expect(response.body.data.files).toHaveLength(2);
   });
 
+  it('aceita .md com MIME application/octet-stream (comum no Windows/navegadores)', async () => {
+    const buffer = Buffer.from('# Título\n\nConteúdo markdown');
+
+    const response = await request(app)
+      .post('/api/files/extract-text')
+      .attach('files', buffer, {
+        filename: 'FUNCIONALIDADES-CONSOLIDADAS-EXTRATA.md',
+        contentType: 'application/octet-stream',
+      })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.text).toContain('Conteúdo markdown');
+  });
+
   it('retorna 400 para tipo de arquivo não suportado', async () => {
     const buffer = Buffer.from('binary');
 

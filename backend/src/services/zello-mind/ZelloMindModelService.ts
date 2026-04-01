@@ -6,7 +6,7 @@ import { buildHUModelPrompt, END_MARKER } from '../../prompts/userStoryTemplate'
 
 export class ZelloMindModelService {
   private client: AxiosInstance;
-  private readonly timeout = 120000;
+  private readonly timeout = 240000;
 
   constructor() {
     if (!env.ZELLO_API_URL) {

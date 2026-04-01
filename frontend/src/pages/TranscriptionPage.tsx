@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
+import { Markdown } from '../components/Markdown';
 import { transcriptionService, type Transcription, type TranscriptionFile } from '../services/transcription.service';
 import Card from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -10,8 +10,15 @@ import { useAuth } from '../contexts/AuthContext';
 import TranscriptionNoteModal from '../components/TranscriptionNoteModal';
 import PlanningTabContent from '../components/PlanningTabContent';
 import { notesService, type Note } from '../services/notes.service';
+import { planningService, type PlanningItem } from '../services/planning.service';
+import {
+  appendLinkedNotesPreview,
+  buildAgentContextBody,
+  buildAgentContextPreviewString,
+  fileExtractsNotAlreadyInMain,
+} from '../utils/agentContextPreview';
 
-type TabType = 'transcription' | 'userStory' | 'summary' | 'cards' | 'requirements' | 'planning';
+type TabType = 'transcription' | 'userStory' | 'summary' | 'cards' | 'requirements' | 'huIdentifier' | 'planning';
 
 const TranscriptionPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,7 +48,7 @@ const TranscriptionPage: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [notesSearch, setNotesSearch] = useState('');
   const [selectedMode, setSelectedMode] = useState<'pipeline' | 'model' | 'gemini'>('pipeline');
-  const [selectedGenerator, setSelectedGenerator] = useState<'hu' | 'summary' | 'cards' | 'req_part1' | 'req_part2'>('req_part1');
+  const [selectedGenerator, setSelectedGenerator] = useState<'hu' | 'summary' | 'cards' | 'req_complete' | 'req_part1' | 'req_part2'>('req_complete');
   const [reqConflicts, setReqConflicts] = useState<Array<{
     topic: string;
     block: string;
@@ -51,6 +58,11 @@ const TranscriptionPage: React.FC = () => {
     sourceB?: string;
     part: 'part1' | 'part2';
   }>>([]);
+  const [identifierHuItems, setIdentifierHuItems] = useState<PlanningItem[]>([]);
+  const [identifierHuLoading, setIdentifierHuLoading] = useState(false);
+  const [identifierHuSuggesting, setIdentifierHuSuggesting] = useState(false);
+  const [identifierHuEditingId, setIdentifierHuEditingId] = useState<number | null>(null);
+  const [identifierAppendFilesLoading, setIdentifierAppendFilesLoading] = useState(false);
 
   const parseRequirementConflicts = (text: string, part: 'part1' | 'part2') => {
     const items: typeof reqConflicts = [];
@@ -123,6 +135,24 @@ const TranscriptionPage: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
+    const loadIdentifierHuItems = async () => {
+      if (!id || activeTab !== 'huIdentifier') return;
+      setIdentifierHuLoading(true);
+      try {
+        const response = await planningService.listItems(parseInt(id, 10));
+        if (response.success && response.data) {
+          setIdentifierHuItems(response.data);
+        }
+      } catch (err: any) {
+        setError(err.message || 'Erro ao carregar HUs identificadas');
+      } finally {
+        setIdentifierHuLoading(false);
+      }
+    };
+    loadIdentifierHuItems();
+  }, [id, activeTab]);
+
+  useEffect(() => {
     if (transcription && !isEditing) {
       setEditTitle(transcription.title);
       setEditDescription(transcription.description || '');
@@ -179,6 +209,19 @@ const TranscriptionPage: React.FC = () => {
       await handleGenerateSummary();
     } else if (activeTab === 'cards') {
       await handleGenerateCards();
+    } else if (activeTab === 'requirements' && selectedGenerator === 'req_complete') {
+      setGeneratingHU(true);
+      try {
+        const response = await transcriptionService.generateRequirementsComplete(parseInt(id, 10), selectedMode);
+        if (response.success) {
+          await loadTranscription();
+          setActiveTab('requirements');
+        }
+      } catch (err: any) {
+        setError(err.message || 'Erro ao gerar Levantamento completo');
+      } finally {
+        setGeneratingHU(false);
+      }
     } else if (activeTab === 'requirements' && selectedGenerator === 'req_part1') {
       setGeneratingHU(true);
       try {
@@ -225,6 +268,105 @@ const TranscriptionPage: React.FC = () => {
       setError(err.message || 'Erro ao gerar Resumo');
     } finally {
       setGeneratingSummary(false);
+    }
+  };
+
+  const handleAppendExtractedFilesToMain = async () => {
+    if (!id || !transcription) return;
+    if (!transcription.isOwner) {
+      setError('Apenas o dono do contexto pode atualizar o texto principal.');
+      return;
+    }
+    const files = transcription.files || [];
+    const withText = files
+      .map((f) => ({ name: f.name, text: (f.extractedText || '').trim() }))
+      .filter((x): x is { name: string; text: string } => x.text.length > 0);
+    if (!withText.length) {
+      setError(
+        'Nenhum anexo com texto extraído. Envie PDF, DOCX, TXT ou MD ao criar ou editar o contexto documental.'
+      );
+      return;
+    }
+    const current = (transcription.content || '').trim();
+    const texts = withText.map((w) => w.text);
+    const toAdd = fileExtractsNotAlreadyInMain(current, texts);
+    if (!toAdd.length) {
+      setError('O texto principal já inclui o conteúdo dos anexos (nada a acrescentar).');
+      return;
+    }
+    const nameByText = new Map(withText.map((w) => [w.text, w.name] as const));
+    const block = toAdd
+      .map((text) => {
+        const label = nameByText.get(text) || 'Anexo';
+        return `## ${label}\n\n${text}`;
+      })
+      .join('\n\n');
+    const newContent = current ? `${current}\n\n---\n\n${block}` : block;
+    setIdentifierAppendFilesLoading(true);
+    setError('');
+    try {
+      const res = await transcriptionService.update(parseInt(id, 10), { content: newContent });
+      if (!res.success) throw new Error(res.message || 'Falha ao salvar');
+      await loadTranscription();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar o texto do contexto');
+    } finally {
+      setIdentifierAppendFilesLoading(false);
+    }
+  };
+
+  const handleSuggestIdentifierHUs = async () => {
+    if (!id) return;
+    setIdentifierHuSuggesting(true);
+    setError('');
+    try {
+      const suggest = await planningService.suggestHUs(parseInt(id, 10));
+      if (!suggest.success || !suggest.data) throw new Error(suggest.message || 'Falha ao sugerir HUs');
+      const rows =
+        suggest.data.itens && suggest.data.itens.length > 0
+          ? suggest.data.itens
+          : suggest.data.titulos.map((t) => ({ titulo: t, descricao: undefined as string | undefined }));
+      for (const row of rows) {
+        await planningService.createItem(parseInt(id, 10), {
+          title: row.titulo.trim(),
+          description: row.descricao?.trim() || undefined,
+          storyPoints: 1,
+          pokerSpecial: null,
+        });
+      }
+      const response = await planningService.listItems(parseInt(id, 10));
+      if (response.success && response.data) setIdentifierHuItems(response.data);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao identificar HUs');
+    } finally {
+      setIdentifierHuSuggesting(false);
+    }
+  };
+
+  const handleDeleteIdentifierHU = async (itemId: number) => {
+    if (!id) return;
+    setError('');
+    try {
+      const response = await planningService.deleteItem(parseInt(id, 10), itemId);
+      if (!response.success) throw new Error(response.message || 'Erro ao excluir HU');
+      setIdentifierHuItems((prev) => prev.filter((i) => i.id !== itemId));
+    } catch (err: any) {
+      setError(err.message || 'Erro ao excluir HU');
+    }
+  };
+
+  const handleSaveIdentifierHU = async (item: PlanningItem) => {
+    if (!id) return;
+    setError('');
+    try {
+      const response = await planningService.updateItem(parseInt(id, 10), item.id, {
+        title: item.title,
+        description: item.description || undefined,
+      });
+      if (!response.success) throw new Error(response.message || 'Erro ao salvar HU');
+      setIdentifierHuEditingId(null);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao salvar HU');
     }
   };
 
@@ -476,13 +618,35 @@ const TranscriptionPage: React.FC = () => {
   }
 
   const tabs = [
-    { id: 'transcription' as TabType, label: 'Contexto Documental', icon: '📄' },
-    { id: 'userStory' as TabType, label: 'História de Usuário', icon: '📋', badge: transcription.userStory ? '✓' : null },
-    { id: 'summary' as TabType, label: 'Resumo', icon: '📝', badge: transcription.summary ? '✓' : null },
-    { id: 'cards' as TabType, label: 'Cards', icon: '🗂️', badge: transcription.card ? '✓' : null },
-    { id: 'requirements' as TabType, label: 'Levantamento', icon: '📚', badge: (transcription.requirements?.part1Content || transcription.requirements?.part2Content) ? '✓' : null },
-    { id: 'planning' as TabType, label: 'Planejamento / Cronograma', icon: '📅' },
+    { id: 'transcription' as TabType, label: 'Contexto Documental' },
+    { id: 'userStory' as TabType, label: 'História de Usuário', badge: transcription.userStory ? '✓' : null },
+    { id: 'summary' as TabType, label: 'Resumo', badge: transcription.summary ? '✓' : null },
+    { id: 'cards' as TabType, label: 'Cards', badge: transcription.card ? '✓' : null },
+    {
+      id: 'requirements' as TabType,
+      label: 'Levantamento',
+      badge: (transcription.requirements?.part1Content || transcription.requirements?.part2Content) ? '✓' : null,
+    },
+    { id: 'huIdentifier' as TabType, label: 'Identificador de HUs' },
+    { id: 'planning' as TabType, label: 'Cronograma' },
   ];
+
+  const huIdentifierFullPreview = appendLinkedNotesPreview(
+    buildAgentContextPreviewString(
+      {
+        content: transcription.content,
+        title: transcription.title,
+        description: transcription.description,
+      },
+      transcription.files
+    ),
+    notes
+  );
+  const huIdentifierBodyPreview = buildAgentContextBody(transcription.content, transcription.files);
+  const huIdentifierFileRows = transcription.files || [];
+  const huIdentifierExtractableCount = huIdentifierFileRows.filter(
+    (f) => String(f.extractedText || '').trim().length > 0
+  ).length;
 
   const handleExport = (format: 'md' | 'txt' | 'doc' | 'pdf') => {
     if (!transcription) return;
@@ -518,7 +682,7 @@ const TranscriptionPage: React.FC = () => {
     <div className="min-h-screen bg-neutral-50">
       {/* Header */}
       <header className="bg-white border-b border-neutral-200 shadow-soft sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <button
               onClick={() => navigate('/dashboard')}
@@ -561,7 +725,7 @@ const TranscriptionPage: React.FC = () => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Sidebar */}
           <aside className="lg:w-64 flex-shrink-0">
@@ -662,7 +826,7 @@ const TranscriptionPage: React.FC = () => {
                             </div>
                             <p className="text-xs text-neutral-500 mt-1">Vinculada a: {n.contextType}</p>
                             <div className="prose prose-sm max-w-none mt-2">
-                              <ReactMarkdown>{n.content}</ReactMarkdown>
+                              <Markdown>{n.content}</Markdown>
                             </div>
                           </li>
                         ))}
@@ -693,6 +857,7 @@ const TranscriptionPage: React.FC = () => {
                           onChange={(e) => setSelectedGenerator(e.target.value as any)}
                           className="block w-full h-9 px-3 border border-neutral-300 rounded-lg text-sm text-neutral-900 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
                         >
+                          <option value="req_complete">Levantamento de Requisitos - Completo (Parte 1 + Parte 2)</option>
                           <option value="req_part1">Levantamento de Requisitos - Parte 1 (Contexto/Solução/Módulos/Dependências)</option>
                           <option value="req_part2">Levantamento de Requisitos - Parte 2 (RFs/Matriz Dependências/Priorização)</option>
                         </select>
@@ -819,47 +984,48 @@ const TranscriptionPage: React.FC = () => {
 
             {/* Tabs */}
             <div className="bg-white rounded-lg border border-neutral-200 mb-6">
-              <div className="flex border-b border-neutral-200">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      if (tab.id === 'userStory' && !transcription.userStory) {
-                        setActiveTab('userStory');
-                        handleGenerateHU();
-                        return;
-                      }
-                      if (tab.id === 'summary' && !transcription.summary) {
-                        setActiveTab('summary');
-                        handleGenerateHU();
-                        return;
-                      }
-                      if (tab.id === 'cards' && !transcription.card) {
-                        setActiveTab('cards');
-                        handleGenerateHU();
-                        return;
-                      }
-                      setActiveTab(tab.id);
-                    }}
-                    className={`
-                      flex-1 px-6 py-4 text-sm font-medium transition-colors
-                      ${activeTab === tab.id
-                        ? 'text-primary-600 border-b-2 border-primary-600 bg-primary-50'
-                        : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
-                      }
-                    `}
-                  >
-                    <span className="flex items-center justify-center gap-2">
-                      <span>{tab.icon}</span>
-                      <span>{tab.label}</span>
-                      {tab.badge && (
-                        <span className="bg-success text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                          {tab.badge}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                ))}
+              <div className="border-b border-neutral-200 overflow-x-auto">
+                <div className="flex gap-1 px-2">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        if (tab.id === 'userStory' && !transcription.userStory) {
+                          setActiveTab('userStory');
+                          handleGenerateHU();
+                          return;
+                        }
+                        if (tab.id === 'summary' && !transcription.summary) {
+                          setActiveTab('summary');
+                          handleGenerateHU();
+                          return;
+                        }
+                        if (tab.id === 'cards' && !transcription.card) {
+                          setActiveTab('cards');
+                          handleGenerateHU();
+                          return;
+                        }
+                        setActiveTab(tab.id);
+                      }}
+                      className={[
+                        'shrink-0 px-3 py-2.5 text-sm font-medium transition-colors whitespace-nowrap rounded-t-md',
+                        'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
+                        activeTab === tab.id
+                          ? 'text-primary-700 border-b-2 border-primary-600 bg-primary-50'
+                          : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-b-2 border-transparent',
+                      ].join(' ')}
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <span>{tab.label}</span>
+                        {tab.badge && (
+                          <span className="bg-success text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            {tab.badge}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -978,7 +1144,7 @@ const TranscriptionPage: React.FC = () => {
                           <Button size="sm" variant="outline" onClick={handleRestoreHU}>Restaurar última HU</Button>
                         </div>
                         <div className="prose max-w-none">
-                          <ReactMarkdown>{transcription.userStory.content}</ReactMarkdown>
+                          <Markdown>{transcription.userStory.content}</Markdown>
                         </div>
                       </>
                     ) : (
@@ -1035,7 +1201,7 @@ const TranscriptionPage: React.FC = () => {
                           <Button size="sm" variant="outline" onClick={handleRestoreSummary}>Restaurar último Resumo</Button>
                         </div>
                         <div className="prose max-w-none">
-                          <ReactMarkdown>{transcription.summary.content}</ReactMarkdown>
+                          <Markdown>{transcription.summary.content}</Markdown>
                         </div>
                       </>
                     ) : (
@@ -1092,7 +1258,7 @@ const TranscriptionPage: React.FC = () => {
                     )}
                     <div className="prose max-w-none">
                       {transcription.card ? (
-                        <ReactMarkdown>{transcription.card.content}</ReactMarkdown>
+                        <Markdown>{transcription.card.content}</Markdown>
                       ) : (
                         <p className="text-neutral-600">Clique em "Gerar Cards" para criar os cards deste contexto.</p>
                       )}
@@ -1119,12 +1285,12 @@ const TranscriptionPage: React.FC = () => {
                           <Button size="sm" variant="outline" onClick={() => handleExport('txt')}>Salvar .txt</Button>
                         </div>
                         <div className="prose max-w-none mb-8">
-                          <ReactMarkdown>
+                          <Markdown>
                             {[
                               (transcription.requirements.part1Content || '').trim(),
                               (transcription.requirements.part2Content || '').trim(),
                             ].filter(Boolean).join('\n\n')}
-                          </ReactMarkdown>
+                          </Markdown>
                         </div>
                         {reqConflicts.length > 0 && (
                           <div className="border rounded-lg p-4">
@@ -1206,13 +1372,168 @@ const TranscriptionPage: React.FC = () => {
                           Levantamento ainda não gerado
                         </h3>
                         <p className="text-neutral-600 mb-6">
-                          Selecione Parte 1 ou Parte 2 no combo e clique em "Gerar"
+                          Selecione “Levantamento completo” no combo e clique em "Gerar"
                         </p>
                         <Button onClick={handleGenerateHU} loading={generatingHU}>
                           Gerar
                         </Button>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {activeTab === 'huIdentifier' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-neutral-900 mb-2">Identificador de HUs</h3>
+                      <p className="text-sm text-neutral-600 mb-4">
+                        O backend monta o contexto com o <strong>texto principal</strong>, os <strong>textos extraídos dos anexos</strong> (PDF, DOCX, TXT, MD enviados com extração) que ainda não estiverem no principal, mais título, descrição, lista de arquivos e{' '}
+                        <strong>transcrições vinculadas</strong> (notas) com conteúdo. Engine principal <strong>Zello Mind</strong>; fallback <strong>Gemini</strong> (OpenRouter).
+                      </p>
+                      {huIdentifierFileRows.length > 0 && (
+                        <div className="rounded-lg border border-neutral-200 bg-white p-4 mb-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                            <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+                              Anexos do contexto documental
+                            </p>
+                            {transcription.isOwner && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={handleAppendExtractedFilesToMain}
+                                loading={identifierAppendFilesLoading}
+                                disabled={huIdentifierExtractableCount === 0}
+                              >
+                                Puxar textos dos anexos para o campo principal
+                              </Button>
+                            )}
+                          </div>
+                          <ul className="text-sm text-neutral-700 space-y-2">
+                            {huIdentifierFileRows.map((f) => {
+                              const extracted = String(f.extractedText || '').trim();
+                              return (
+                                <li key={f.id} className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2 border-b border-neutral-100 last:border-0 pb-2 last:pb-0">
+                                  <span className="font-medium text-neutral-900 shrink-0">{f.name}</span>
+                                  <span className="text-neutral-500 text-xs sm:text-sm">
+                                    {extracted
+                                      ? `${extracted.length.toLocaleString('pt-BR')} caracteres extraídos`
+                                      : 'Sem texto extraído no banco — reenvie o arquivo na edição do contexto se precisar da extração.'}
+                                  </span>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 space-y-3">
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+                            Corpo analisado (principal + anexos não redundantes)
+                          </p>
+                          <p className="text-sm text-neutral-800 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                            {huIdentifierBodyPreview ||
+                              'Sem texto principal nem extratos de anexo. Adicione conteúdo na aba Contexto documental ou anexe arquivos com extração.'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+                            Contexto completo enviado à IA (trecho)
+                          </p>
+                          <p className="text-sm text-neutral-800 whitespace-pre-wrap max-h-40 overflow-y-auto">
+                            {huIdentifierFullPreview ||
+                              'Sem dados suficientes para montar o contexto (texto, anexos ou notas vinculadas).'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border rounded-lg p-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                        <h4 className="text-sm font-semibold text-neutral-700">Itens no planejamento (criados a partir da identificação)</h4>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={handleSuggestIdentifierHUs}
+                          loading={identifierHuSuggesting}
+                        >
+                          Identificar HUs
+                        </Button>
+                      </div>
+                      {identifierHuLoading ? (
+                        <p className="text-sm text-neutral-500">Carregando itens...</p>
+                      ) : identifierHuItems.length === 0 ? (
+                        <p className="text-sm text-neutral-500">
+                          Nenhum item ainda. Clique em &quot;Identificar HUs&quot; para gerar títulos a partir da transcrição e adicioná-los ao planejamento.
+                        </p>
+                      ) : (
+                        <ul className="space-y-3">
+                          {identifierHuItems.map((item) => (
+                            <li key={item.id} className="border rounded-lg p-3">
+                              {identifierHuEditingId === item.id ? (
+                                <div className="space-y-2">
+                                  <input
+                                    type="text"
+                                    value={item.title}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      setIdentifierHuItems((prev) =>
+                                        prev.map((p) => (p.id === item.id ? { ...p, title: value } : p))
+                                      );
+                                    }}
+                                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={item.description || ''}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      setIdentifierHuItems((prev) =>
+                                        prev.map((p) =>
+                                          p.id === item.id ? { ...p, description: value || null } : p
+                                        )
+                                      );
+                                    }}
+                                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                                    placeholder="Descrição (opcional)"
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <Button size="sm" variant="outline" onClick={() => setIdentifierHuEditingId(null)}>
+                                      Cancelar
+                                    </Button>
+                                    <Button size="sm" onClick={() => handleSaveIdentifierHU(item)}>
+                                      Salvar
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-medium text-neutral-900">{item.title}</p>
+                                    <p className="text-xs text-neutral-600 mt-1">{item.description || 'Sem descrição'}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setIdentifierHuEditingId(item.id)}
+                                    >
+                                      Editar
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleDeleteIdentifierHU(item.id)}
+                                    >
+                                      Excluir
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
                 )}
 

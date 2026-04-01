@@ -1,31 +1,47 @@
 import { drizzle } from 'drizzle-orm/mysql2';
+import { migrate } from 'drizzle-orm/mysql2/migrator';
 import mysql from 'mysql2/promise';
-import * as schema from './schema';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-/**
- * Script de migração manual do banco de dados
- * Executa as migrations geradas pelo drizzle-kit
- */
-async function migrate() {
+async function runMigrations() {
   if (!process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL não está definida no arquivo .env');
   }
 
-  const connection = await mysql.createConnection(process.env.DATABASE_URL);
-  // Cria instância do drizzle para uso futuro
-  drizzle(connection, { schema, mode: 'default' });
+  const url = process.env.DATABASE_URL;
+  const maxAttempts = 30;
+  const delayMs = 1000;
 
-  console.log('Migração iniciada...');
+  let connection: mysql.Connection | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      connection = await mysql.createConnection(url);
+      break;
+    } catch (e: any) {
+      const code = e?.code as string | undefined;
+      const retriable =
+        code === 'ECONNREFUSED' ||
+        code === 'ETIMEDOUT' ||
+        code === 'EAI_AGAIN' ||
+        code === 'ENOTFOUND';
+      if (!retriable || attempt === maxAttempts) throw e;
+      console.log(`Banco indisponível (${code || 'erro'}). Tentando novamente em ${delayMs}ms... (${attempt}/${maxAttempts})`);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  if (!connection) throw new Error('Falha ao conectar no banco após várias tentativas.');
+  const db = drizzle(connection, { mode: 'default' });
 
-  // As migrations são geradas pelo drizzle-kit e executadas manualmente
-  // ou através de um sistema de migrations automático
-  console.log('Execute: npm run db:generate para gerar migrations');
-  console.log('Execute: npm run db:push para aplicar migrations');
+  console.log('Migração iniciada (drizzle)...');
+  await migrate(db, { migrationsFolder: 'drizzle' });
+  console.log('Migração concluída.');
 
   await connection.end();
 }
 
-migrate().catch(console.error);
+runMigrations().catch((e) => {
+  console.error(e);
+  process.exitCode = 1;
+});

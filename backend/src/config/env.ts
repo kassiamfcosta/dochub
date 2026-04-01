@@ -35,6 +35,8 @@ const envSchema = z.object({
   AGENT_HU_COMPILER_ID: z.string().default('696651b2c8038e89b32d9122'),
   AGENT_REQ_PART1_ID: z.string().default('696fbe399d359610af461e8d'),
   AGENT_REQ_PART2_ID: z.string().default('696fbe4e9d359610af461e8e'),
+  // Identificador de HUs (HU 5)
+  AGENT_HU_IDENTIFIER_ID: z.string().default('69ca873ba4996f2a0c2bb4b6'),
 
   BUSINESS_MAP_API_URL: z.string().url().optional(),
   BUSINESS_MAP_API_KEY: z.string().optional(),
