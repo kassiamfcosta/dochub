@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import dotenv from 'dotenv';
+import { loadBackendEnv } from './loadBackendEnv';
 
-dotenv.config();
+loadBackendEnv();
 
 /**
  * Schema de validação das variáveis de ambiente

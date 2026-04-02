@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
 import env from './config/env';
 import authRoutes from './routes/auth.routes';
 import transcriptionRoutes from './routes/transcription.routes';
@@ -12,8 +11,6 @@ import utilsRoutes from './routes/utils.routes';
 import notesRoutes from './routes/notes.routes';
 
 import { errorHandler } from './middlewares/error-handler';
-
-dotenv.config();
 
 export const app = express();
 const PORT = parseInt(env.PORT, 10);

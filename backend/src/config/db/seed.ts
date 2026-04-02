@@ -2,9 +2,6 @@ import { db } from './index';
 import { users } from './schema';
 import { hashPassword } from '../../utils/password';
 import { eq } from 'drizzle-orm';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 /**
  * Script de seed para popular banco com dados de teste

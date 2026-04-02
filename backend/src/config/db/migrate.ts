@@ -1,16 +1,18 @@
+import path from 'path';
 import { drizzle } from 'drizzle-orm/mysql2';
 import { migrate } from 'drizzle-orm/mysql2/migrator';
 import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
+import { loadBackendEnv, BACKEND_ROOT } from '../loadBackendEnv';
 
-dotenv.config();
+loadBackendEnv();
 
 async function runMigrations() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL não está definida no arquivo .env');
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    throw new Error(
+      'DATABASE_URL não está definida. Use backend/.env ou exporte no ambiente (igual ao db:push).',
+    );
   }
-
-  const url = process.env.DATABASE_URL;
   const maxAttempts = 30;
   const delayMs = 1000;
 
@@ -35,7 +37,7 @@ async function runMigrations() {
   const db = drizzle(connection, { mode: 'default' });
 
   console.log('Migração iniciada (drizzle)...');
-  await migrate(db, { migrationsFolder: 'drizzle' });
+  await migrate(db, { migrationsFolder: path.join(BACKEND_ROOT, 'drizzle') });
   console.log('Migração concluída.');
 
   await connection.end();

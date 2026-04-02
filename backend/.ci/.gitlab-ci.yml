@@ -1,0 +1,9 @@
+include:
+    - project: "infra/ci-template"
+      file: "gitflow.yml"
+      ref: release/3.0.0
+
+variables:
+  APP_NAME: "zello-hub-backend"
+  NAMESPACE: zello-hub
+  IMAGE_TAG: ${REGISTRY_URL}/$NAMESPACE/$APP_NAME:${CI_COMMIT_REF_SLUG}

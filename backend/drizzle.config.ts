@@ -1,14 +1,21 @@
 import type { Config } from 'drizzle-kit';
-import dotenv from 'dotenv';
+import { loadBackendEnv } from './src/config/loadBackendEnv';
 
-dotenv.config();
+loadBackendEnv();
+
+const databaseUrl = process.env.DATABASE_URL?.trim();
+if (!databaseUrl) {
+  throw new Error(
+    'DATABASE_URL é obrigatória para drizzle-kit (db:push, db:generate). Defina em backend/.env ou exporte no ambiente.',
+  );
+}
 
 export default {
   schema: './src/config/db/schema.ts',
   out: './drizzle',
   driver: 'mysql2',
   dbCredentials: {
-    uri: process.env.DATABASE_URL || '',
+    uri: databaseUrl,
   },
 } satisfies Config;
 
