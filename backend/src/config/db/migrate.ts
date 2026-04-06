@@ -10,7 +10,7 @@ async function runMigrations() {
   const url = process.env.DATABASE_URL?.trim();
   if (!url) {
     throw new Error(
-      'DATABASE_URL não está definida. Use backend/.env ou exporte no ambiente (igual ao db:push).',
+      'DATABASE_URL não está definida. Defina no ambiente (Docker, Kubernetes/cofre, CI) ou em backend/.env para desenvolvimento local (igual ao db:push).',
     );
   }
   const maxAttempts = 30;

@@ -2,6 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# DATABASE_URL e demais segredos vêm do ambiente em runtime (compose, K8s/cofre).
+# backend/.env não entra na imagem (.dockerignore).
+
 # Copiar package.json e package-lock.json
 COPY package*.json ./
 

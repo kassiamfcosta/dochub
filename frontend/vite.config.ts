@@ -8,6 +8,10 @@ export default defineConfig({
     fs: {
       strict: false,
     },
+    allowedHosts: ['hub.zello.space'],
+  },
+  preview: {
+    allowedHosts: ['hub.zello.space'],
   },
   resolve: {
     alias: {
@@ -15,4 +19,3 @@ export default defineConfig({
     },
   },
 })
-

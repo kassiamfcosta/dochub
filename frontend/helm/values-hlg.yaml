@@ -1,0 +1,100 @@
+replicaCount: 1
+fullnameOverride: "zello-hub-frontend"
+image:
+  repository: harbor.zello.space/zello-hub/zello-hub-frontend
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets:
+  - name: harbor-zello
+
+deployments:
+  command: ["/bin/sh"]
+  args: 
+    - "-c"
+    - "npm run build && npm run preview -- --host 0.0.0.0 --port 4173"
+
+
+nameOverride: ""
+
+ingress:
+  enabled: true
+  className: "kong"
+  annotations: {}
+  hosts:
+    - host: hub.zello.space
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: {}
+
+startupProbe:
+  failureThreshold: 30
+  httpGet:
+    path: /
+    port: 4173
+    scheme: HTTP
+  periodSeconds: 5
+  timeoutSeconds: 2
+
+livenessProbe:
+  failureThreshold: 3
+  httpGet:
+    path: /
+    port: 4173
+    scheme: HTTP
+  initialDelaySeconds: 120
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 2
+
+readinessProbe:
+  failureThreshold: 3
+  httpGet:
+    path: /
+    port: 4173
+    scheme: HTTP
+  initialDelaySeconds: 60
+  periodSeconds: 5
+  successThreshold: 1
+  timeoutSeconds: 2
+
+virtualService:
+  enabled: false
+  hosts: "zello-hub-backend-hlg.zello.space"
+  prefix: "/"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 256Mi
+    ephemeral-storage: "4Gi"
+
+  requests:
+    cpu: 100m
+    memory: 100Mi
+    ephemeral-storage: "2Gi"
+
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+ExternalSecret:
+  enable: true
+  name: zellohub-frontend-vault
+  namespace: zello-hub
+  secretStoreRef:
+    name: cluster-secret-store-vault
+    kind: ClusterSecretStore
+  refreshInterval: "2m"
+  target:
+    name: zellohub-frontend-vault
+  dataFrom:
+    key: hlg/zellohub-frontend/
+
+service:
+  type: ClusterIP
+  port: 4173

@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zello-hub
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: whisper-cache
+  namespace: zello-hub
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-ryu
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whisper
+  namespace: zello-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: whisper
+  template:
+    metadata:
+      labels:
+        app: whisper
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: whisper
+          image: onerahmet/openai-whisper-asr-webservice:v1.9.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ASR_MODEL
+              value: tiny
+            - name: ASR_ENGINE
+              value: openai_whisper
+          ports:
+            - containerPort: 9000
+              name: http
+          volumeMounts:
+            - name: whisper-cache
+              mountPath: /root/.cache
+
+          startupProbe:
+            httpGet:
+              path: /docs
+              port: 9000
+            failureThreshold: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /docs
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /docs
+              port: 9000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+              ephemeral-storage: "4Gi"
+            limits:
+              cpu: "1"
+              memory: "2Gi"
+              ephemeral-storage: "8Gi"
+
+      volumes:
+        - name: whisper-cache
+          persistentVolumeClaim:
+            claimName: whisper-cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whisper
+  namespace: zello-hub
+spec:
+  type: ClusterIP
+  selector:
+    app: whisper
+  ports:
+    - name: http
+      port: 9000
+      targetPort: 9000

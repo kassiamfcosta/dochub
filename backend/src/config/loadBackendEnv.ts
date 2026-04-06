@@ -5,8 +5,12 @@ import dotenv from 'dotenv';
 const BACKEND_PACKAGE_NAME = 'doc-hub-backend';
 
 /**
- * Raiz do pacote backend (pasta com package.json e, em geral, o .env).
+ * Raiz do pacote backend (pasta com package.json e, em geral, o .env local).
  * Funciona com `tsx src/...`, com `node dist/...` e com drizzle-kit.
+ *
+ * Ordem de configuração: o que já está em `process.env` (Kubernetes, Docker,
+ * cofre/ExternalSecret, CI) não é sobrescrito. O arquivo `backend/.env` só
+ * preenche chaves ausentes — típico do desenvolvimento na máquina.
  */
 function resolveBackendRoot(): string {
   let dir = __dirname;
@@ -33,7 +37,10 @@ function resolveBackendRoot(): string {
 
 export const BACKEND_ROOT = resolveBackendRoot();
 
-/** Carrega backend/.env primeiro; depois complementa com .env do cwd (sem sobrescrever chaves já definidas). */
+/**
+ * Carrega `backend/.env` e depois `.env` do cwd, sem sobrescrever variáveis
+ * já definidas no ambiente (cluster, compose, shell).
+ */
 export function loadBackendEnv(): void {
   dotenv.config({ path: path.join(BACKEND_ROOT, '.env') });
   dotenv.config();

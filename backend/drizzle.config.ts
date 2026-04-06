@@ -6,7 +6,7 @@ loadBackendEnv();
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) {
   throw new Error(
-    'DATABASE_URL é obrigatória para drizzle-kit (db:push, db:generate). Defina em backend/.env ou exporte no ambiente.',
+    'DATABASE_URL é obrigatória para drizzle-kit (db:push, db:generate). Defina no ambiente (Docker, Kubernetes/cofre, CI) ou em backend/.env para desenvolvimento local.',
   );
 }
 

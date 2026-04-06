@@ -5,6 +5,11 @@
 # API: http://localhost:3001
 # Copie .env.example para .env e preencha JWT_SECRET, ZELLO_API_KEY, etc.
 # FRONTEND_URL no .env: use http://localhost:5173 (Vite) ou http://localhost:4173 (preview Docker)
+#
+# DATABASE_URL: no Kubernetes/cofre injete DATABASE_URL no pod (sem .env na imagem).
+# Neste compose, a URL abaixo aponta para o serviço `mysql` da rede Docker — não use
+# o mesmo .env de desenvolvimento no host (localhost) sem ajustar, senão o container
+# não alcança o banco.
 
 name: doc-hub-backend
 
