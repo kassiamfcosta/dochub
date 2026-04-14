@@ -1,0 +1,22 @@
+# Foco do repositório: apenas backend e frontend
+/*
+!/backend/
+!/frontend/
+!.gitignore
+
+# Dependências e artefatos locais
+/node_modules/
+/backend/node_modules/
+/frontend/node_modules/
+
+# Ambiente local
+/.venv/
+/logs/
+*.log
+
+# Segredos locais
+*.env
+*.env.local
+*.env.*.local
+!/backend/.env.example
+!/frontend/.env.example
