@@ -15,6 +15,17 @@ import { errorHandler } from './middlewares/error-handler';
 export const app = express();
 const PORT = parseInt(env.PORT, 10);
 
+// Necessário quando há X-Forwarded-For (proxy/ingress); senão express-rate-limit lança ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+const trust = env.TRUST_PROXY;
+if (trust !== 'false' && trust !== '0') {
+  let hops = 1;
+  if (trust && trust !== 'true' && trust !== '1') {
+    const parsed = parseInt(trust, 10);
+    if (Number.isFinite(parsed) && parsed > 0) hops = parsed;
+  }
+  app.set('trust proxy', hops);
+}
+
 // Middlewares
 app.use(cors({
   origin: env.NODE_ENV === 'development' ? true : env.FRONTEND_URL,

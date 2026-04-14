@@ -42,6 +42,7 @@ projeto/
 ## Tecnologias
 
 ### Backend
+
 - Node.js 18+ com TypeScript
 - Express.js 4 (API REST)
 - Drizzle ORM (MySQL)
@@ -51,6 +52,7 @@ projeto/
 - Axios (cliente HTTP para Zello Mind)
 
 ### Frontend
+
 - React 18+ com TypeScript
 - React Router v6
 - Tailwind CSS 4
@@ -60,6 +62,7 @@ projeto/
 - Axios (cliente HTTP)
 
 ### Banco de Dados
+
 - MySQL 8
 
 ## Funcionalidades
@@ -95,6 +98,7 @@ npm run dev
 ## Documentação
 
 Consulte a pasta `docs/` para documentação detalhada:
+
 - `SETUP.md` - Guia completo de instalação e deploy
 - `API.md` - Documentação da API REST
 - `AGENTES.md` - Configuração dos agentes Zello Mind
@@ -129,4 +133,3 @@ npm run test         # Executa testes
 ## Licença
 
 ISC
-

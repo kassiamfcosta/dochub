@@ -11,6 +11,8 @@ const envSchema = z.object({
   PORT: z.string().default('3001'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+  /** Atrás de reverse proxy (nginx, Traefik, etc.): use "1" para um hop. "false"/"0" desliga. Omitido = 1 (evita ERR_ERL_UNEXPECTED_X_FORWARDED_FOR). */
+  TRUST_PROXY: z.string().optional(),
 
   // Banco de Dados
   DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatória'),

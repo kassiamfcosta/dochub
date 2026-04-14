@@ -4,6 +4,7 @@ include:
       ref: release/3.0.0
 
 variables:
+  NODE_ENV: production
   APP_NAME: "zello-hub-backend"
   NAMESPACE: zello-hub
   IMAGE_TAG: ${REGISTRY_URL}/$NAMESPACE/$APP_NAME:${CI_COMMIT_REF_SLUG}
